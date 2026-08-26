@@ -1,0 +1,15 @@
+.today-greeting {
+  font-size: 1.1rem;
+  max-width: 40rem;
+}
+
+.today-review-ready {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.today-review-card .panel {
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+}
