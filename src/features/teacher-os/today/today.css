@@ -1,15 +1,62 @@
-.today-greeting {
-  font-size: 1.1rem;
-  max-width: 40rem;
+.mission-page {
+  max-width: var(--content-max);
 }
 
-.today-review-ready {
+.mission-masthead h1 {
+  margin-bottom: 0;
+  font-size: 1.5rem;
+}
+
+/*
+ * Mission is one composition, not a dashboard of cards: a single primary
+ * sentence, its action, and a short truthful margin of secondary facts.
+ */
+.mission {
+  border-left: 3px solid var(--color-accent);
+  padding-left: var(--space-5);
+}
+
+.mission-hero-headline {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  max-width: 34rem;
+  margin-bottom: var(--space-3);
+}
+
+.mission-hero-detail {
+  font-size: 1.05rem;
+  color: var(--color-ink-muted);
+  max-width: 38rem;
+}
+
+.mission-hero-action {
+  margin-bottom: var(--space-6);
+}
+
+.mission-secondary {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
-.today-review-card .panel {
-  box-shadow: none;
-  border: 0;
-  padding: 0;
+.mission-secondary dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+}
+
+.mission-secondary dd {
+  margin: 0;
+  max-width: 44rem;
+}
+
+@media (max-width: 600px) {
+  .mission {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 3px solid var(--color-accent);
+    padding-top: var(--space-4);
+  }
 }

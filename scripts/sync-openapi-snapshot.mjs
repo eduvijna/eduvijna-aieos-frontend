@@ -13,8 +13,8 @@
  * Destination (this repo):
  *   contracts/openapi/aieos-v1.consumer-snapshot.json
  *
- * TOS-DEV01 Lane A pinned SHA:
- *   bcfd5eb054ef07c30219cfae0ca9ccd7279ea8c0
+ * TOS-DEV02 Lane A pinned SHA:
+ *   f62da1f461957cb443ee422d3a343d15c9ca6640
  *
  * This script copies the file only. It does NOT mutate the backend repo.
  * Update contracts/openapi/README.md when changing the pinned SHA.
@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, "..");
 
-const PINNED_SHA = "bcfd5eb054ef07c30219cfae0ca9ccd7279ea8c0";
+const PINNED_SHA = "f62da1f461957cb443ee422d3a343d15c9ca6640";
 const backendRoot =
   process.env.AIEOS_BACKEND_ROOT ||
   path.resolve(frontendRoot, "..", "eduvijna-aieos-backend");

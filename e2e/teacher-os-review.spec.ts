@@ -41,10 +41,35 @@ async function connectDevSession(page: import("@playwright/test").Page) {
   await expect(page.getByText(/Connected \(memory only/i)).toBeVisible();
 }
 
+function calendarDate(offsetDays: number): string {
+  const now = new Date();
+  const date = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + offsetDays,
+  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 async function mockReviewApis(
   page: import("@playwright/test").Page,
   options?: { approveOk?: boolean },
 ) {
+  // Today is Mission-first: the Review hero is what routes into the queue.
+  await page.route("**/api/v1/teacher-os/today/mission**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mission_date: calendarDate(0),
+        review: { pending_count: 1 },
+        preparation: { active_work_count: 0, continue_work: null },
+        hero_action: { kind: "review", work_id: null },
+      }),
+    });
+  });
   await page.route("**/api/v1/teacher-os/review-queue?**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -129,8 +154,10 @@ test.describe("Teacher OS review smoke", () => {
     await expect(
       page.getByRole("heading", { name: /Today's Mission/i }),
     ).toBeVisible();
-    await expect(page.getByText(/Pending items/i)).toBeVisible();
-    await page.getByRole("link", { name: /Load review queue/i }).click();
+    await expect(
+      page.getByRole("heading", { name: /1 item waiting for review/i }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: /Open review queue/i }).click();
 
     await expect(
       page.getByRole("heading", { name: "Review Queue" }),
@@ -147,7 +174,7 @@ test.describe("Teacher OS review smoke", () => {
   test("request-changes path", async ({ page }) => {
     await mockReviewApis(page);
     await connectDevSession(page);
-    await page.getByRole("link", { name: /Load review queue/i }).click();
+    await page.getByRole("link", { name: /Open review queue/i }).click();
     await page.getByRole("link", { name: /Open artifact/i }).click();
     await expect(
       page.getByRole("heading", { name: "E2E Photosynthesis" }),

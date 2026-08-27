@@ -1,122 +1,133 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listReviewQueue } from "@/services/api/reviewQueueApi";
+import { getTodayMission } from "@/services/api/missionApi";
+import type { TeacherOsMission } from "@/services/api/generated/teachingTypes";
 import { useSession } from "@/services/session/useSession";
 import { userMessageForApiError } from "@/shared/errors/ApiError";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
+import { localToday, localTomorrow } from "@/shared/time/calendarDate";
+import {
+  missionHero,
+  preparationSentence,
+  reviewPendingSentence,
+} from "./missionCopy";
 import "./today.css";
 
-type CardState =
-  | { kind: "idle" }
-  | { kind: "unavailable" }
+type MissionState =
   | { kind: "loading" }
-  | { kind: "empty"; countLabel: string }
-  | {
-      kind: "ready";
-      countLabel: string;
-      hasMore: boolean;
-    }
+  | { kind: "unavailable" }
+  | { kind: "ready"; mission: TeacherOsMission }
   | { kind: "error"; message: string };
 
 export function TodayPage() {
   const { isConnected, isProduction } = useSession();
-  const [card, setCard] = useState<CardState>({ kind: "idle" });
+  const [state, setState] = useState<MissionState>({ kind: "loading" });
+  const [missionDate] = useState(() => localToday());
+  const [tomorrow] = useState(() => localTomorrow());
 
-  const loadCount = useCallback(async () => {
+  const loadMission = useCallback(async () => {
     if (!isConnected && !isProduction) {
-      setCard({ kind: "unavailable" });
+      setState({ kind: "unavailable" });
       return;
     }
-    setCard({ kind: "loading" });
+    setState({ kind: "loading" });
     try {
-      const { data } = await listReviewQueue({ limit: 100 });
-      const n = data.items.length;
-      const hasMore = Boolean(data.next_cursor);
-      const countLabel = hasMore ? `${n}+` : String(n);
-      if (n === 0 && !hasMore) {
-        setCard({ kind: "empty", countLabel: "0" });
-      } else {
-        setCard({ kind: "ready", countLabel, hasMore });
-      }
+      const { data } = await getTodayMission(missionDate);
+      setState({ kind: "ready", mission: data });
     } catch (error) {
-      setCard({ kind: "error", message: userMessageForApiError(error) });
+      setState({ kind: "error", message: userMessageForApiError(error) });
     }
-  }, [isConnected, isProduction]);
+  }, [isConnected, isProduction, missionDate]);
 
   useEffect(() => {
-    if (!isConnected && !isProduction) {
-      setCard({ kind: "unavailable" });
-      return;
-    }
-    void loadCount();
-  }, [isConnected, isProduction, loadCount]);
+    void loadMission();
+  }, [loadMission]);
+
+  const mission = state.kind === "ready" ? state.mission : null;
+  const hero = mission ? missionHero(mission, tomorrow) : null;
+  const heroKind = mission?.hero_action.kind;
 
   return (
-    <article className="stack today-page">
-      <header>
-        <p className="muted">Teacher OS</p>
+    <article className="stack mission-page">
+      <header className="mission-masthead">
+        <p className="muted">Teacher OS · {missionDate}</p>
         <h1>Today&apos;s Mission</h1>
-        <p className="today-greeting">
-          Good day. Focus on outcomes that need your judgment — starting with
-          the Review Queue.
-        </p>
       </header>
 
-      <section
-        className="panel today-review-card"
-        aria-labelledby="today-review-heading"
-      >
-        <h2 id="today-review-heading">Review Queue</h2>
-        <div className="status-region" aria-live="polite">
-          {card.kind === "loading" || card.kind === "idle" ? (
-            <LoadingState label="Loading pending review count…" />
+      <div className="status-region" aria-live="polite">
+        {state.kind === "loading" ? (
+          <LoadingState label="Loading today's mission…" />
+        ) : null}
+        {state.kind === "unavailable" ? (
+          <EmptyState
+            title="Session required"
+            description="Connect a DEV session to load your real mission from the API. No timetable, attendance, or school metrics are invented here."
+          />
+        ) : null}
+        {state.kind === "error" ? (
+          <ErrorState
+            title="Could not load today's mission"
+            message={state.message}
+            onRetry={() => void loadMission()}
+          />
+        ) : null}
+      </div>
+
+      {mission && hero ? (
+        <section className="mission" aria-labelledby="mission-hero-heading">
+          <h2 id="mission-hero-heading" className="mission-hero-headline">
+            {hero.headline}
+          </h2>
+          {hero.detail ? (
+            <p className="mission-hero-detail">{hero.detail}</p>
           ) : null}
-          {card.kind === "unavailable" ? (
-            <EmptyState
-              title="Session required"
-              description="Connect a DEV session to load the real pending review count from the API. No fake business data is shown."
-            />
-          ) : null}
-          {card.kind === "empty" ? (
-            <EmptyState
-              title="No pending reviews"
-              description="The first page of the review queue is empty."
-              action={
-                <Link className="btn" to="/teacher-os/review">
-                  Open review queue
-                </Link>
-              }
-            />
-          ) : null}
-          {card.kind === "ready" ? (
-            <div className="today-review-ready">
-              <p>
-                Pending items (first page
-                {card.hasMore ? ", more available" : ""}):{" "}
-                <strong>{card.countLabel}</strong>
-              </p>
-              {card.hasMore ? (
-                <p className="muted">
-                  Count shows at least {card.countLabel.replace("+", "")}{" "}
-                  because a next page cursor is present.
-                </p>
-              ) : null}
-              <Link className="btn" to="/teacher-os/review">
-                Load review queue
-              </Link>
-            </div>
-          ) : null}
-          {card.kind === "error" ? (
-            <ErrorState
-              title="Could not load review queue"
-              message={card.message}
-              onRetry={() => void loadCount()}
-            />
-          ) : null}
-        </div>
-      </section>
+          <p className="mission-hero-action">
+            <Link className="btn" to={hero.actionTo}>
+              {hero.actionLabel}
+            </Link>
+          </p>
+
+          <dl className="mission-secondary">
+            {heroKind === "review" ? null : (
+              <div>
+                <dt>Review</dt>
+                <dd>{reviewPendingSentence(mission.review.pending_count)}</dd>
+              </div>
+            )}
+            {heroKind === "continue_work" ? null : (
+              <div>
+                <dt>Preparation</dt>
+                <dd>{preparationSentence(mission, tomorrow)}</dd>
+              </div>
+            )}
+            {heroKind === "review" &&
+            mission.preparation.continue_work !== null ? (
+              <div>
+                <dt>Also open</dt>
+                <dd>
+                  <Link
+                    to={`/teacher-os/work/${mission.preparation.continue_work.work_id}`}
+                  >
+                    Continue preparation
+                  </Link>
+                </dd>
+              </div>
+            ) : null}
+            {heroKind !== "prepare_tomorrow" ? (
+              <div>
+                <dt>Prepare</dt>
+                <dd>
+                  <Link to="/teacher-os/prepare">
+                    Help me prepare tomorrow
+                  </Link>
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
     </article>
   );
 }

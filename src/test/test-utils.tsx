@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { ReactElement, ReactNode } from "react";
 import { SessionProvider } from "@/services/session/SessionContext";
@@ -6,10 +7,17 @@ import {
   devSessionConnector,
   type DevSession,
 } from "@/services/session/DevSessionConnector";
+import type {
+  MissionContinueWork,
+  TeacherOsMission,
+  TeachingWork,
+} from "@/services/api/generated/teachingTypes";
 import { TeacherOsShell } from "@/features/teacher-os/shell/TeacherOsShell";
 import { TodayPage } from "@/features/teacher-os/today/TodayPage";
 import { ReviewQueuePage } from "@/features/teacher-os/review/ReviewQueuePage";
 import { ReviewDetailPage } from "@/features/teacher-os/review/ReviewDetailPage";
+import { PreparePage } from "@/features/teacher-os/prepare/PreparePage";
+import { WorkPage } from "@/features/teacher-os/work/WorkPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
 
@@ -67,10 +75,8 @@ export function renderApp(
               path="review/:contentId/versions/:versionId"
               element={<ReviewDetailPage />}
             />
-            <Route
-              path="prepare"
-              element={<PlaceholderPage title="Prepare" slug="prepare" />}
-            />
+            <Route path="prepare" element={<PreparePage />} />
+            <Route path="work/:workId" element={<WorkPage />} />
             <Route
               path="teach"
               element={<PlaceholderPage title="Teach" slug="teach" />}
@@ -128,6 +134,75 @@ export const sampleDetail = {
   payload_sha256: "abc123",
 };
 
+export const WORK_ID = "33333333-3333-3333-3333-333333333333";
+
+export function calendarDate(offsetDays: number): string {
+  const now = new Date();
+  const date = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + offsetDays,
+  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export const sampleWork: TeachingWork = {
+  work_id: WORK_ID,
+  intent_type: "prepare_tomorrow",
+  goal_text: "Explain why leaves look green",
+  class_label: "Grade 5B",
+  subject: "Science",
+  topic: "Photosynthesis",
+  target_date: calendarDate(1),
+  locale: "en-IN",
+  aggregate_revision: 1,
+  created_at: "2026-08-27T04:00:00Z",
+  updated_at: "2026-08-27T05:00:00Z",
+  archived_at: null,
+};
+
+export const sampleContinueWork: MissionContinueWork = {
+  work_id: sampleWork.work_id,
+  intent_type: sampleWork.intent_type,
+  goal_text: sampleWork.goal_text,
+  class_label: sampleWork.class_label,
+  subject: sampleWork.subject,
+  topic: sampleWork.topic,
+  target_date: sampleWork.target_date,
+  aggregate_revision: sampleWork.aggregate_revision,
+  updated_at: sampleWork.updated_at,
+};
+
+/** Mission projections matching the three backend hero priorities. */
+export function missionWithReview(pendingCount = 3): TeacherOsMission {
+  return {
+    mission_date: calendarDate(0),
+    review: { pending_count: pendingCount },
+    preparation: { active_work_count: 0, continue_work: null },
+    hero_action: { kind: "review", work_id: null },
+  };
+}
+
+export function missionWithContinueWork(): TeacherOsMission {
+  return {
+    mission_date: calendarDate(0),
+    review: { pending_count: 0 },
+    preparation: { active_work_count: 1, continue_work: sampleContinueWork },
+    hero_action: { kind: "continue_work", work_id: sampleWork.work_id },
+  };
+}
+
+export function missionWithPrepareTomorrow(): TeacherOsMission {
+  return {
+    mission_date: calendarDate(0),
+    review: { pending_count: 0 },
+    preparation: { active_work_count: 0, continue_work: null },
+    hero_action: { kind: "prepare_tomorrow", work_id: null },
+  };
+}
+
 export function mockJsonResponse(
   body: unknown,
   init?: { status?: number; etag?: string | null },
@@ -138,4 +213,35 @@ export function mockJsonResponse(
     status: init?.status ?? 200,
     headers,
   });
+}
+
+export type FetchCall = {
+  url: string;
+  method: string;
+  headers: Headers;
+  body: unknown;
+};
+
+/** Record every request the app makes so header and body contracts can be asserted. */
+export function stubFetch(
+  handler: (call: FetchCall) => Response | Promise<Response>,
+): FetchCall[] {
+  const calls: FetchCall[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const call: FetchCall = {
+        url: String(input),
+        method: init?.method ?? "GET",
+        headers: new Headers(init?.headers),
+        body:
+          typeof init?.body === "string"
+            ? (JSON.parse(init.body) as unknown)
+            : undefined,
+      };
+      calls.push(call);
+      return handler(call);
+    }),
+  );
+  return calls;
 }

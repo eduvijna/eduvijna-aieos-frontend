@@ -1,0 +1,62 @@
+.work-page {
+  max-width: var(--content-max);
+}
+
+.work-page h1 {
+  font-size: 1.6rem;
+  max-width: 36rem;
+}
+
+.work-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.work-meta dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+}
+
+.work-meta dd {
+  margin: 0;
+}
+
+.work-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.work-form label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.work-form input,
+.work-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.work-form textarea {
+  resize: vertical;
+}
+
+.work-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-4);
+}
+
+.work-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

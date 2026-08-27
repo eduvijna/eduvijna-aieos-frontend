@@ -3,6 +3,8 @@ import { TeacherOsShell } from "@/features/teacher-os/shell/TeacherOsShell";
 import { TodayPage } from "@/features/teacher-os/today/TodayPage";
 import { ReviewQueuePage } from "@/features/teacher-os/review/ReviewQueuePage";
 import { ReviewDetailPage } from "@/features/teacher-os/review/ReviewDetailPage";
+import { PreparePage } from "@/features/teacher-os/prepare/PreparePage";
+import { WorkPage } from "@/features/teacher-os/work/WorkPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
 
@@ -18,10 +20,8 @@ export function AppRouter() {
           path="review/:contentId/versions/:versionId"
           element={<ReviewDetailPage />}
         />
-        <Route
-          path="prepare"
-          element={<PlaceholderPage title="Prepare" slug="prepare" />}
-        />
+        <Route path="prepare" element={<PreparePage />} />
+        <Route path="work/:workId" element={<WorkPage />} />
         <Route
           path="teach"
           element={<PlaceholderPage title="Teach" slug="teach" />}

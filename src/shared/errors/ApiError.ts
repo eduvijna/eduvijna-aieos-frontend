@@ -53,9 +53,9 @@ export function userMessageForApiError(error: unknown): string {
       case "precondition_required":
         return "A required precondition header was missing (client contract error).";
       case "not_found":
-        return "The requested review item was not found.";
+        return "The requested item was not found.";
       case "unavailable":
-        return "The review service is temporarily unavailable.";
+        return "The service is temporarily unavailable.";
       case "network":
         return "Could not reach the API. Check the proxy target and backend.";
       default:
