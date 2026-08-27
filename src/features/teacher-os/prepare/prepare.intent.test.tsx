@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   calendarDate,
+  emptyWorkArtifacts,
+  isWorkArtifactsPath,
   mockJsonResponse,
   renderApp,
   sampleWork,
@@ -15,7 +17,10 @@ function stubTeachingApis() {
     if (call.method === "POST" && call.url === "/api/v1/teaching/works") {
       return mockJsonResponse(sampleWork, { status: 201, etag: '"r1"' });
     }
-    if (call.url.startsWith(`/api/v1/teaching/works/${sampleWork.work_id}`)) {
+    if (isWorkArtifactsPath(call.url, sampleWork.work_id)) {
+      return mockJsonResponse(emptyWorkArtifacts(sampleWork.work_id));
+    }
+    if (call.url === `/api/v1/teaching/works/${sampleWork.work_id}`) {
       return mockJsonResponse(sampleWork, { etag: '"r1"' });
     }
     return mockJsonResponse({ title: "unexpected", status: 404 }, { status: 404 });
@@ -188,6 +193,9 @@ describe("D. Prepare is a real Teaching Intent flow", () => {
           );
         }
         return mockJsonResponse(sampleWork, { status: 201, etag: '"r1"' });
+      }
+      if (isWorkArtifactsPath(call.url, sampleWork.work_id)) {
+        return mockJsonResponse(emptyWorkArtifacts(sampleWork.work_id));
       }
       return mockJsonResponse(sampleWork, { etag: '"r1"' });
     });

@@ -245,6 +245,40 @@ export interface paths {
         patch: operations["teaching_work_refine"];
         trace?: never;
     };
+    "/api/v1/teaching/works/{work_id}/actions/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Teaching Work Generate */
+        post: operations["teaching_work_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teaching/works/{work_id}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Teaching Work Artifacts List */
+        get: operations["teaching_work_artifacts_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -387,6 +421,43 @@ export interface components {
              * Format: uuid
              */
             work_id: string;
+        };
+        /** EducationalQualityCheckResponse */
+        EducationalQualityCheckResponse: {
+            /** Code */
+            code: string;
+            /** Explanation */
+            explanation: string;
+            /** Passed */
+            passed: boolean;
+        };
+        /** EducationalQualityResponse */
+        EducationalQualityResponse: {
+            /** Checks */
+            checks: components["schemas"]["EducationalQualityCheckResponse"][];
+            /** Status */
+            status: string;
+        };
+        /** GeneratedArtifactResponse */
+        GeneratedArtifactResponse: {
+            /** Aggregate Revision */
+            aggregate_revision: number;
+            /**
+             * Content Id
+             * Format: uuid
+             */
+            content_id: string;
+            /** Content Type */
+            content_type: string;
+            /** Stewardship State */
+            stewardship_state: string;
+            /** Title */
+            title: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
         };
         /** HeroActionResponse */
         HeroActionResponse: {
@@ -673,6 +744,16 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** TeachingWorkArtifactsResponse */
+        TeachingWorkArtifactsResponse: {
+            /** Items */
+            items: components["schemas"]["WorkArtifactItemResponse"][];
+            /**
+             * Work Id
+             * Format: uuid
+             */
+            work_id: string;
+        };
         /**
          * TeachingWorkCreateRequest
          * @description A Teaching Intent request. Accepting it creates a durable Work.
@@ -695,6 +776,21 @@ export interface components {
             target_date: string;
             /** Topic */
             topic?: string | null;
+        };
+        /** TeachingWorkGenerateResponse */
+        TeachingWorkGenerateResponse: {
+            artifact: components["schemas"]["GeneratedArtifactResponse"];
+            educational_quality: components["schemas"]["EducationalQualityResponse"];
+            /**
+             * Generation Run Id
+             * Format: uuid
+             */
+            generation_run_id: string;
+            /**
+             * Work Id
+             * Format: uuid
+             */
+            work_id: string;
         };
         /** TeachingWorkListResponse */
         TeachingWorkListResponse: {
@@ -769,6 +865,30 @@ export interface components {
             resource_ref: components["schemas"]["ResourceRefRequest"];
             /** Role */
             role: string;
+        };
+        /** WorkArtifactItemResponse */
+        WorkArtifactItemResponse: {
+            /** Aggregate Revision */
+            aggregate_revision: number;
+            /**
+             * Content Id
+             * Format: uuid
+             */
+            content_id: string;
+            /** Content Type */
+            content_type: string;
+            educational_quality?: components["schemas"]["EducationalQualityResponse"] | null;
+            /** Origin */
+            origin: string;
+            /** Stewardship State */
+            stewardship_state: string;
+            /** Title */
+            title: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
         };
     };
     responses: never;
@@ -3127,6 +3247,304 @@ export interface operations {
             };
             /** @description RFC 9457 Problem Details */
             428: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            500: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            503: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    teaching_work_generate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Required strong aggregate revision validator, e.g. "r0". */
+                "If-Match": string | null;
+                /** @description Required retry key. Bounded, not stored in PostgreSQL. */
+                "Idempotency-Key": string | null;
+                "X-AIEOS-Tenant-ID"?: string | null;
+                /** @description Optional correlation identifier. Malformed values are rejected. The server generates a UUIDv7 when absent. Distinct from request_id. */
+                "X-AIEOS-Correlation-ID"?: string;
+            };
+            path: {
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeachingWorkGenerateResponse"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            400: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            401: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            403: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            404: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            409: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            412: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            422: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            428: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            500: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            502: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            503: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    teaching_work_artifacts_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-AIEOS-Tenant-ID"?: string | null;
+                /** @description Optional correlation identifier. Malformed values are rejected. The server generates a UUIDv7 when absent. Distinct from request_id. */
+                "X-AIEOS-Correlation-ID"?: string;
+            };
+            path: {
+                work_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeachingWorkArtifactsResponse"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            400: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            401: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            403: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            404: {
+                headers: {
+                    /** @description Correlation identifier preserved or generated by the server. */
+                    "X-AIEOS-Correlation-ID"?: string;
+                    /** @description Server-generated UUIDv7 request identifier. Callers cannot choose it. */
+                    "X-AIEOS-Request-ID"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description RFC 9457 Problem Details */
+            422: {
                 headers: {
                     /** @description Correlation identifier preserved or generated by the server. */
                     "X-AIEOS-Correlation-ID"?: string;

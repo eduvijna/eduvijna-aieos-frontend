@@ -8,9 +8,13 @@ import {
   type DevSession,
 } from "@/services/session/DevSessionConnector";
 import type {
+  EducationalQuality,
   MissionContinueWork,
   TeacherOsMission,
   TeachingWork,
+  TeachingWorkArtifactsResponse,
+  TeachingWorkGenerateResponse,
+  WorkArtifactItem,
 } from "@/services/api/generated/teachingTypes";
 import { TeacherOsShell } from "@/features/teacher-os/shell/TeacherOsShell";
 import { TodayPage } from "@/features/teacher-os/today/TodayPage";
@@ -162,6 +166,104 @@ export const sampleWork: TeachingWork = {
   updated_at: "2026-08-27T05:00:00Z",
   archived_at: null,
 };
+
+export const CONTENT_ID = sampleQueueItem.content_id;
+export const VERSION_ID = sampleQueueItem.version_id;
+
+export const sampleEducationalQuality: EducationalQuality = {
+  status: "PASS",
+  checks: [
+    {
+      code: "age_appropriate",
+      passed: true,
+      explanation: "Language fits Grade 5.",
+    },
+    {
+      code: "curriculum_aligned",
+      passed: true,
+      explanation: "Aligned to photosynthesis.",
+    },
+  ],
+};
+
+export const sampleWorkArtifact: WorkArtifactItem = {
+  content_id: CONTENT_ID,
+  version_id: VERSION_ID,
+  content_type: "worksheet",
+  title: "Photosynthesis worksheet draft",
+  origin: "AI",
+  stewardship_state: "IN_REVIEW",
+  aggregate_revision: 1,
+  educational_quality: sampleEducationalQuality,
+};
+
+export function emptyWorkArtifacts(
+  workId: string = WORK_ID,
+): TeachingWorkArtifactsResponse {
+  return { work_id: workId, items: [] };
+}
+
+export function workArtifactsWith(
+  item: WorkArtifactItem = sampleWorkArtifact,
+  workId: string = WORK_ID,
+): TeachingWorkArtifactsResponse {
+  return { work_id: workId, items: [item] };
+}
+
+export const sampleGenerateResponse: TeachingWorkGenerateResponse = {
+  work_id: WORK_ID,
+  generation_run_id: "55555555-5555-5555-5555-555555555555",
+  artifact: {
+    content_id: CONTENT_ID,
+    version_id: VERSION_ID,
+    content_type: "worksheet",
+    title: sampleWorkArtifact.title,
+    stewardship_state: "IN_REVIEW",
+    aggregate_revision: 1,
+  },
+  educational_quality: sampleEducationalQuality,
+};
+
+export function isWorkGetPath(url: string, workId: string = WORK_ID): boolean {
+  return (
+    url === `/api/v1/teaching/works/${workId}` ||
+    url.startsWith(`/api/v1/teaching/works/${workId}?`)
+  );
+}
+
+export function isWorkArtifactsPath(
+  url: string,
+  workId: string = WORK_ID,
+): boolean {
+  return url.includes(`/api/v1/teaching/works/${workId}/artifacts`);
+}
+
+export function isWorkGeneratePath(
+  url: string,
+  workId: string = WORK_ID,
+): boolean {
+  return url.includes(`/api/v1/teaching/works/${workId}/actions/generate`);
+}
+
+export function mockProblemResponse(
+  status: number,
+  code: string,
+  title = code,
+): Response {
+  return mockJsonResponse(
+    {
+      type: "about:blank",
+      title,
+      status,
+      detail: title,
+      instance: "/api/v1/teaching/works",
+      code,
+      request_id: "66666666-6666-6666-6666-666666666666",
+      correlation_id: "77777777-7777-7777-7777-777777777777",
+    },
+    { status },
+  );
+}
 
 export const sampleContinueWork: MissionContinueWork = {
   work_id: sampleWork.work_id,

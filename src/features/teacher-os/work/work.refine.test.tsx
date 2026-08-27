@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
   calendarDate,
+  emptyWorkArtifacts,
+  isWorkArtifactsPath,
+  isWorkGetPath,
   mockJsonResponse,
   renderApp,
   sampleWork,
@@ -21,6 +24,9 @@ function stubWork(
 ) {
   let current = initial;
   return stubFetch((call) => {
+    if (isWorkArtifactsPath(call.url)) {
+      return mockJsonResponse(emptyWorkArtifacts());
+    }
     if (call.method === "PATCH") {
       if (onPatch) return onPatch(call);
       const patched = { ...current, ...(call.body as Partial<TeachingWork>) };
@@ -29,9 +35,12 @@ function stubWork(
         etag: `"r${current.aggregate_revision}"`,
       });
     }
-    return mockJsonResponse(current, {
-      etag: `"r${current.aggregate_revision}"`,
-    });
+    if (isWorkGetPath(call.url)) {
+      return mockJsonResponse(current, {
+        etag: `"r${current.aggregate_revision}"`,
+      });
+    }
+    return mockJsonResponse({ title: "Not Found", status: 404 }, { status: 404 });
   });
 }
 
@@ -52,17 +61,24 @@ describe("F. Work detail reads from the server", () => {
     expect(screen.getByText(sampleWork.updated_at)).toBeInTheDocument();
   });
 
-  it("states the truthful next step and offers no working Generate button", async () => {
+  it("offers Generate preparation draft when no artifact exists", async () => {
     stubWork();
     renderApp(WORK_ROUTE);
 
     expect(
-      await screen.findByText(/Preparation is ready for generation\./i),
+      await screen.findByRole("button", {
+        name: /Generate preparation draft/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Generation is not part of this development slice/i),
+      screen.getByText(/DEV03 creates the first worksheet draft/i),
     ).toBeInTheDocument();
-    for (const label of [/^Generate$/i, /Generate now/i, /Generate lesson/i]) {
+    expect(screen.queryByText(/Worksheet Generator/i)).toBeNull();
+    for (const label of [
+      /Generate Worksheet/i,
+      /Generate Quiz/i,
+      /Generate Lesson Plan/i,
+    ]) {
       expect(screen.queryByRole("button", { name: label })).toBeNull();
     }
   });
@@ -161,24 +177,30 @@ describe("G. Work refinement uses If-Match and Idempotency-Key", () => {
   it("on 412 refreshes from the server and reports the stale load", async () => {
     let reads = 0;
     const calls = stubFetch((call) => {
+      if (isWorkArtifactsPath(call.url)) {
+        return mockJsonResponse(emptyWorkArtifacts());
+      }
       if (call.method === "PATCH") {
         return mockJsonResponse(
           { title: "Precondition Failed", status: 412 },
           { status: 412 },
         );
       }
-      reads += 1;
-      return reads === 1
-        ? mockJsonResponse(sampleWork, { etag: '"r1"' })
-        : mockJsonResponse(
-            {
-              ...sampleWork,
-              topic: "Chlorophyll",
-              aggregate_revision: 7,
-              updated_at: "2026-08-27T07:00:00Z",
-            },
-            { etag: '"r7"' },
-          );
+      if (isWorkGetPath(call.url)) {
+        reads += 1;
+        return reads === 1
+          ? mockJsonResponse(sampleWork, { etag: '"r1"' })
+          : mockJsonResponse(
+              {
+                ...sampleWork,
+                topic: "Chlorophyll",
+                aggregate_revision: 7,
+                updated_at: "2026-08-27T07:00:00Z",
+              },
+              { etag: '"r7"' },
+            );
+      }
+      return mockJsonResponse({ title: "Not Found", status: 404 }, { status: 404 });
     });
 
     renderApp(WORK_ROUTE);
@@ -195,7 +217,9 @@ describe("G. Work refinement uses If-Match and Idempotency-Key", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/^Topic$/i)).toHaveValue("Chlorophyll");
     });
-    expect(calls.filter((call) => call.method === "GET")).toHaveLength(2);
+    expect(
+      calls.filter((call) => call.method === "GET" && isWorkGetPath(call.url)),
+    ).toHaveLength(2);
   });
 
   it("reports a missing precondition (428) plainly", async () => {
@@ -261,7 +285,9 @@ describe("H. Work has no browser-side authority", () => {
     await user.click(screen.getByRole("button", { name: /Reload from server/i }));
 
     await waitFor(() => {
-      expect(calls.filter((call) => call.method === "GET")).toHaveLength(2);
+      expect(
+        calls.filter((call) => call.method === "GET" && isWorkGetPath(call.url)),
+      ).toHaveLength(2);
     });
   });
 });

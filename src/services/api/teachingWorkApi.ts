@@ -1,7 +1,9 @@
 import { apiRequest } from "./client";
 import type {
   TeachingWork,
+  TeachingWorkArtifactsResponse,
   TeachingWorkCreateRequest,
+  TeachingWorkGenerateResponse,
   TeachingWorkList,
   TeachingWorkRefineRequest,
 } from "./generated/teachingTypes";
@@ -58,4 +60,29 @@ export async function refineTeachingWork(
       "Idempotency-Key": crypto.randomUUID(),
     },
   });
+}
+
+/**
+ * Ask AIEOS to create the first preparation draft for this Work.
+ * Capability / model / prompt selection is server-side — no body.
+ */
+export async function generateTeachingWork(workId: string, etag: string) {
+  return apiRequest<TeachingWorkGenerateResponse>(
+    `/api/v1/teaching/works/${workId}/actions/generate`,
+    {
+      method: "POST",
+      headers: {
+        "If-Match": etag,
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+    },
+  );
+}
+
+/** Teacher-facing artifact summaries linked to a Work (includes educational_quality). */
+export async function listTeachingWorkArtifacts(workId: string) {
+  return apiRequest<TeachingWorkArtifactsResponse>(
+    `/api/v1/teaching/works/${workId}/artifacts`,
+    { method: "GET" },
+  );
 }
