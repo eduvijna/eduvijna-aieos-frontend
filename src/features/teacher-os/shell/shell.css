@@ -1,0 +1,142 @@
+.tos-shell {
+  display: grid;
+  grid-template-columns: var(--shell-nav-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: var(--space-2);
+  z-index: 10;
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-3);
+}
+
+.skip-link:focus {
+  left: var(--space-2);
+}
+
+.tos-nav {
+  background: #16323a;
+  color: #e8f1f3;
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tos-brand-kicker {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ec4c1;
+}
+
+.tos-brand-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+}
+
+.tos-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tos-nav-link {
+  display: block;
+  color: #d7e6e9;
+  text-decoration: none;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+}
+
+.tos-nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tos-nav-link.is-active {
+  background: rgba(15, 110, 106, 0.45);
+  color: #fff;
+}
+
+.tos-nav-note {
+  margin-top: auto;
+  font-size: 0.85rem;
+  color: #a8c0c6 !important;
+}
+
+.tos-main-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tos-main {
+  padding: var(--space-6);
+  max-width: calc(var(--content-max) + 4rem);
+}
+
+.tos-dev-session {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-accent-soft);
+  padding: var(--space-3) var(--space-6);
+}
+
+.tos-dev-session summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tos-dev-session-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  max-width: 36rem;
+}
+
+.tos-dev-session-form label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 0.9rem;
+}
+
+.tos-dev-session-form input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.tos-dev-session-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .tos-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .tos-nav {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .tos-nav-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .tos-main {
+    padding: var(--space-4);
+  }
+}

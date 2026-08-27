@@ -47,12 +47,24 @@ temp/
 *.rar
 *.7z
 
-# Node (if tooling is added later)
+# Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-store/
+dist/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.tmp/
+*.tsbuildinfo
+
+# Local evidence / scratch (TOS-DEV01)
+tmp/
+tmp-evidence/
+evidence/
 
 # Python (if tooling is added later)
 __pycache__/
