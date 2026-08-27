@@ -24,7 +24,7 @@ Implementation notes for the frontend vertical slice on branch
 | Field | Value |
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
-| Source SHA | `f60fe410f48b7a964e1b4ac56d0ea26087c0be43` |
+| Source SHA | `164e49577bdddef021a2fdee24f983962b4e87b8` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
 | Consumer file SHA-256 | `BBE357612BFF091F7EAF54A4C5F1065B248BB0212A3F0DDF4AFF0685C759C4C7` |
 | Authority | **NON-AUTHORITATIVE** — backend OpenAPI remains canonical |

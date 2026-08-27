@@ -10,13 +10,13 @@ This directory holds a **consumer snapshot** of the AIEOS HTTP contract for fron
 - The file `aieos-v1.consumer-snapshot.json` in this frontend repo is **NON-AUTHORITATIVE**.
   It must not be treated as the source of truth for API behaviour.
 
-## Snapshot provenance (TOS-DEV03 Lane A)
+## Snapshot provenance (TOS-DEV03R1 Lane A)
 
 | Field | Value |
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
 | Source path | `contracts/openapi/aieos-v1.json` |
-| Source SHA | `f60fe410f48b7a964e1b4ac56d0ea26087c0be43` |
+| Source SHA | `164e49577bdddef021a2fdee24f983962b4e87b8` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
 | Consumer file SHA-256 | `BBE357612BFF091F7EAF54A4C5F1065B248BB0212A3F0DDF4AFF0685C759C4C7` |
 
@@ -53,7 +53,7 @@ overrides when the default location or pinned SHA is not current:
 
 ```bash
 AIEOS_BACKEND_ROOT=../eduvijna-aieos-backend \
-AIEOS_BACKEND_OPENAPI_SHA=f60fe410f48b7a964e1b4ac56d0ea26087c0be43 \
+AIEOS_BACKEND_OPENAPI_SHA=164e49577bdddef021a2fdee24f983962b4e87b8 \
   pnpm sync:openapi
 ```
 
