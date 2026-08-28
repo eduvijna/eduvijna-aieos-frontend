@@ -16,7 +16,7 @@ This directory holds a **consumer snapshot** of the AIEOS HTTP contract for fron
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
 | Source path | `contracts/openapi/aieos-v1.json` |
-| Source SHA | `bacad2f3074b645e5848a9b602d190b41f997288` |
+| Source SHA | `b3f69972e6e981eaa57f1f6539467d8b1c61817e` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
 | Consumer file SHA-256 | `BBE357612BFF091F7EAF54A4C5F1065B248BB0212A3F0DDF4AFF0685C759C4C7` |
 
@@ -39,7 +39,7 @@ Operations consumed by this frontend at this SHA:
 |-------|------------|
 | TOS-DEV02 Lane A | `f62da1f461957cb443ee422d3a343d15c9ca6640` |
 | TOS-DEV03R1 Lane A | `164e49577bdddef021a2fdee24f983962b4e87b8` |
-| TOS-DEV03R2 Lane A | `bacad2f3074b645e5848a9b602d190b41f997288` |
+| TOS-DEV03R2 Lane A | `b3f69972e6e981eaa57f1f6539467d8b1c61817e` |
 | TOS-DEV01 Lane A | `bcfd5eb054ef07c30219cfae0ca9ccd7279ea8c0` |
 
 ## Sync
@@ -55,7 +55,7 @@ overrides when the default location or pinned SHA is not current:
 
 ```bash
 AIEOS_BACKEND_ROOT=../eduvijna-aieos-backend \
-AIEOS_BACKEND_OPENAPI_SHA=bacad2f3074b645e5848a9b602d190b41f997288 \
+AIEOS_BACKEND_OPENAPI_SHA=b3f69972e6e981eaa57f1f6539467d8b1c61817e \
   pnpm sync:openapi
 ```
 

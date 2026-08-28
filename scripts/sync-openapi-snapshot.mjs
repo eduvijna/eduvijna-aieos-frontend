@@ -14,7 +14,7 @@
  *   contracts/openapi/aieos-v1.consumer-snapshot.json
  *
  * TOS-DEV03R2 pinned backend PR head SHA:
- *   bacad2f3074b645e5848a9b602d190b41f997288
+ *   b3f69972e6e981eaa57f1f6539467d8b1c61817e
  * Consumer OpenAPI SHA-256:
  *   BBE357612BFF091F7EAF54A4C5F1065B248BB0212A3F0DDF4AFF0685C759C4C7
  *
@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, "..");
 
-const PINNED_SHA = "bacad2f3074b645e5848a9b602d190b41f997288";
+const PINNED_SHA = "b3f69972e6e981eaa57f1f6539467d8b1c61817e";
 const backendRoot =
   process.env.AIEOS_BACKEND_ROOT ||
   path.resolve(frontendRoot, "..", "eduvijna-aieos-backend");
