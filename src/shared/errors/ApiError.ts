@@ -42,6 +42,22 @@ export function mapHttpStatusToCode(status: number): ApiErrorCode {
   return "unknown";
 }
 
+/** RFC 9457 `code` from a problem+json body carried on ApiError.detail. */
+export function problemCodeFromApiError(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const detail = error.detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    detail !== null &&
+    "code" in detail &&
+    typeof (detail as { code: unknown }).code === "string"
+  ) {
+    return (detail as { code: string }).code;
+  }
+  return null;
+}
+
 export function userMessageForApiError(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {

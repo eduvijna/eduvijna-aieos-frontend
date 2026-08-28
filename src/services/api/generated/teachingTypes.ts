@@ -1,5 +1,5 @@
 /**
- * Focused Teaching Work / Today's Mission types for TOS-DEV02 Lane A.
+ * Focused Teaching Work / Today's Mission / generate types for TOS-DEV03 Lane A.
  * Prefer regenerating full OpenAPI types via `pnpm generate:api-types` when practical.
  * Full generated output (when present) lives alongside this module as `aieos-v1.ts`.
  */
@@ -89,4 +89,50 @@ export type TeacherOsMission = {
   review: MissionReviewProjection;
   preparation: MissionPreparationProjection;
   hero_action: MissionHeroAction;
+};
+
+/** One educational-quality check returned by the server (never invented client-side). */
+export type EducationalQualityCheck = {
+  code: string;
+  passed: boolean;
+  explanation: string;
+};
+
+export type EducationalQuality = {
+  status: string;
+  checks: EducationalQualityCheck[];
+};
+
+/** Artifact summary on a successful generate response. */
+export type GeneratedArtifact = {
+  content_id: string;
+  version_id: string;
+  content_type: string;
+  title: string;
+  stewardship_state: string;
+  aggregate_revision: number;
+};
+
+export type TeachingWorkGenerateResponse = {
+  work_id: string;
+  generation_run_id: string;
+  artifact: GeneratedArtifact;
+  educational_quality: EducationalQuality;
+};
+
+/** Teacher-facing artifact row from GET …/artifacts. */
+export type WorkArtifactItem = {
+  content_id: string;
+  version_id: string;
+  content_type: string;
+  title: string;
+  origin: string;
+  stewardship_state: string;
+  aggregate_revision: number;
+  educational_quality: EducationalQuality | null;
+};
+
+export type TeachingWorkArtifactsResponse = {
+  work_id: string;
+  items: WorkArtifactItem[];
 };

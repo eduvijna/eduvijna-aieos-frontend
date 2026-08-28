@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const WORK_ID = "44444444-4444-4444-4444-444444444444";
+const CONTENT_ID = "11111111-1111-1111-1111-111111111111";
+const VERSION_ID = "22222222-2222-2222-2222-222222222222";
 
 function calendarDate(offsetDays: number): string {
   const now = new Date();
@@ -31,6 +33,20 @@ type Work = {
   archived_at: string | null;
 };
 
+type Artifact = {
+  content_id: string;
+  version_id: string;
+  content_type: string;
+  title: string;
+  origin: string;
+  stewardship_state: string;
+  aggregate_revision: number;
+  educational_quality: {
+    status: string;
+    checks: Array<{ code: string; passed: boolean; explanation: string }>;
+  };
+};
+
 async function connectDevSession(page: Page) {
   await page.goto("/teacher-os/today");
   const details = page.locator("details").filter({
@@ -46,18 +62,34 @@ async function connectDevSession(page: Page) {
 }
 
 /**
- * A minimal in-memory stand-in for the Teaching bounded context: one Work row,
- * an aggregate revision behind the ETag, and a Mission derived on every read.
+ * In-memory stand-in for Teaching Work + generate + review-queue detail.
+ * No provider calls — HTTP fixtures only.
  */
 async function mockTeachingApis(page: Page) {
   let work: Work | null = null;
-  const seen = { createKeys: [] as string[], refineKeys: [] as string[] };
+  let artifact: Artifact | null = null;
+  const seen = {
+    createKeys: [] as string[],
+    refineKeys: [] as string[],
+    generateKeys: [] as string[],
+  };
+
+  const educationalQuality = {
+    status: "PASS",
+    checks: [
+      {
+        code: "age_appropriate",
+        passed: true,
+        explanation: "Language fits Grade 5.",
+      },
+    ],
+  };
 
   await page.route("**/api/v1/teacher-os/today/mission**", async (route) => {
     const mission = work
       ? {
           mission_date: calendarDate(0),
-          review: { pending_count: 0 },
+          review: { pending_count: artifact ? 1 : 0 },
           preparation: {
             active_work_count: 1,
             continue_work: {
@@ -72,7 +104,9 @@ async function mockTeachingApis(page: Page) {
               updated_at: work.updated_at,
             },
           },
-          hero_action: { kind: "continue_work", work_id: work.work_id },
+          hero_action: artifact
+            ? { kind: "review", work_id: null }
+            : { kind: "continue_work", work_id: work.work_id },
         }
       : {
           mission_date: calendarDate(0),
@@ -88,6 +122,10 @@ async function mockTeachingApis(page: Page) {
   });
 
   await page.route("**/api/v1/teaching/works", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback();
+      return;
+    }
     const headers = route.request().headers();
     expect(headers["idempotency-key"]).toBeTruthy();
     seen.createKeys.push(headers["idempotency-key"]);
@@ -119,7 +157,148 @@ async function mockTeachingApis(page: Page) {
     });
   });
 
-  await page.route("**/api/v1/teaching/works/*", async (route) => {
+  await page.route(
+    `**/api/v1/teaching/works/${WORK_ID}/actions/generate`,
+    async (route) => {
+      expect(route.request().method()).toBe("POST");
+      const headers = route.request().headers();
+      expect(headers["if-match"]).toBe(`"r${work!.aggregate_revision}"`);
+      expect(headers["idempotency-key"]).toBeTruthy();
+      expect(route.request().postData()).toBeNull();
+      seen.generateKeys.push(headers["idempotency-key"]);
+
+      artifact = {
+        content_id: CONTENT_ID,
+        version_id: VERSION_ID,
+        content_type: "worksheet",
+        title: "E2E worksheet draft",
+        origin: "AI",
+        stewardship_state: "IN_REVIEW",
+        aggregate_revision: 1,
+        educational_quality: educationalQuality,
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          work_id: WORK_ID,
+          generation_run_id: "55555555-5555-5555-5555-555555555555",
+          artifact: {
+            content_id: artifact.content_id,
+            version_id: artifact.version_id,
+            content_type: artifact.content_type,
+            title: artifact.title,
+            stewardship_state: artifact.stewardship_state,
+            aggregate_revision: artifact.aggregate_revision,
+          },
+          educational_quality: educationalQuality,
+        }),
+      });
+    },
+  );
+
+  await page.route(
+    `**/api/v1/teaching/works/${WORK_ID}/artifacts`,
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          work_id: WORK_ID,
+          items: artifact ? [artifact] : [],
+        }),
+      });
+    },
+  );
+
+  await page.route("**/api/v1/teacher-os/review-queue**", async (route) => {
+    const url = route.request().url();
+    if (url.includes(`/review-queue/${CONTENT_ID}/versions/`)) {
+      await route.fallback();
+      return;
+    }
+    const items = artifact
+      ? [
+          {
+            content_id: CONTENT_ID,
+            version_id: VERSION_ID,
+            version_number: 1,
+            content_type: "worksheet",
+            title: "E2E worksheet draft",
+            description: "Generated draft",
+            locale: "en-IN",
+            artifact_status: "In Review",
+            origin: "AI",
+            aggregate_revision: 2,
+            submitted_at: "2026-08-27T08:00:00Z",
+            version_created_at: "2026-08-27T08:00:00Z",
+            published_version_id: null,
+          },
+        ]
+      : [];
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items, next_cursor: null }),
+    });
+  });
+
+  await page.route(
+    `**/api/v1/teacher-os/review-queue/${CONTENT_ID}/versions/${VERSION_ID}`,
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { ETag: '"r2"' },
+        body: JSON.stringify({
+          content_id: CONTENT_ID,
+          version_id: VERSION_ID,
+          version_number: 1,
+          content_type: "worksheet",
+          title: "E2E worksheet draft",
+          description: "Generated draft",
+          locale: "en-IN",
+          artifact_status: "In Review",
+          origin: "AI",
+          aggregate_revision: 2,
+          submitted_at: "2026-08-27T08:00:00Z",
+          version_created_at: "2026-08-27T08:00:00Z",
+          published_version_id: null,
+          schema_id: "worksheet",
+          schema_version: 1,
+          payload: { prompt: "Name one part of a leaf", note: "safe" },
+          payload_sha256: "deadbeef",
+        }),
+      });
+    },
+  );
+
+  await page.route(
+    `**/api/v1/contents/${CONTENT_ID}/versions/${VERSION_ID}/actions/approve`,
+    async (route) => {
+      const headers = route.request().headers();
+      expect(headers["if-match"]).toBe('"r2"');
+      expect(headers["idempotency-key"]).toBeTruthy();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          review_decision_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          content_id: CONTENT_ID,
+          version_id: VERSION_ID,
+          decision: "APPROVED",
+          reason_code: null,
+          comment: null,
+          decided_at: "2026-08-27T09:00:00Z",
+          stewardship_state: "APPROVED",
+          aggregate_revision: 3,
+        }),
+      });
+    },
+  );
+
+  await page.route(`**/api/v1/teaching/works/${WORK_ID}`, async (route) => {
     if (!work) {
       await route.fulfill({
         status: 404,
@@ -203,7 +382,7 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
     ).toBeVisible();
     await expect(page.getByText("Grade 5B")).toBeVisible();
     await expect(
-      page.getByText(/Preparation is ready for generation\./i),
+      page.getByRole("button", { name: /Generate preparation draft/i }),
     ).toBeVisible();
     expect(seen.createKeys).toHaveLength(1);
 
@@ -224,13 +403,50 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
     await expect(
       page.getByRole("heading", { name: /Refine this preparation/i }),
     ).toBeVisible();
-    // Re-read from the server, so the refinement is the API's value, not the browser's.
     await expect(page.getByLabel(/^Topic$/i)).toHaveValue(
       "Photosynthesis in leaves",
     );
   });
 
-  test("Prepare offers no generator grid and Work offers no Generate button", async ({
+  test("Today → Work → Generate preparation draft → Review detail → Approve", async ({
+    page,
+  }) => {
+    const seen = await mockTeachingApis(page);
+    await connectDevSession(page);
+
+    await page
+      .getByRole("link", { name: /Help me prepare tomorrow/i })
+      .click();
+    await page
+      .getByLabel(/Outcome for this lesson/i)
+      .fill("Explain why leaves look green");
+    await page.getByRole("button", { name: /Continue to context/i }).click();
+    await page.getByLabel(/^Topic \(optional\)/i).fill("Photosynthesis");
+    await page.getByRole("button", { name: /Review and confirm/i }).click();
+    await page.getByRole("button", { name: /Create preparation/i }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/teacher-os/work/${WORK_ID}$`));
+    await page
+      .getByRole("button", { name: /Generate preparation draft/i })
+      .click();
+
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/teacher-os/review/${CONTENT_ID}/versions/${VERSION_ID}$`,
+      ),
+    );
+    await expect(
+      page.getByRole("heading", { name: /E2E worksheet draft/i }),
+    ).toBeVisible();
+    expect(seen.generateKeys).toHaveLength(1);
+
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Review Queue" }),
+    ).toBeVisible();
+  });
+
+  test("Prepare offers no generator grid; Work uses Generate preparation draft", async ({
     page,
   }) => {
     await mockTeachingApis(page);
@@ -243,9 +459,22 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
       /Generate Worksheet/i,
       /Generate Quiz/i,
       /Generate Lesson Plan/i,
+      /Worksheet Generator/i,
     ]) {
       await expect(page.getByRole("button", { name })).toHaveCount(0);
       await expect(page.getByRole("link", { name })).toHaveCount(0);
     }
+
+    await page
+      .getByLabel(/Outcome for this lesson/i)
+      .fill("Explain why leaves look green");
+    await page.getByRole("button", { name: /Continue to context/i }).click();
+    await page.getByRole("button", { name: /Review and confirm/i }).click();
+    await page.getByRole("button", { name: /Create preparation/i }).click();
+
+    await expect(
+      page.getByRole("button", { name: /Generate preparation draft/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/Worksheet Generator/i)).toHaveCount(0);
   });
 });

@@ -2,6 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
+  emptyWorkArtifacts,
+  isWorkArtifactsPath,
   missionWithReview,
   mockJsonResponse,
   renderApp,
@@ -9,6 +11,21 @@ import {
   stubFetch,
   WORK_ID,
 } from "@/test/test-utils";
+
+function stubWorkReads() {
+  return stubFetch((call) => {
+    if (isWorkArtifactsPath(call.url)) {
+      return mockJsonResponse(emptyWorkArtifacts());
+    }
+    if (call.method === "PATCH") {
+      return mockJsonResponse(
+        { ...sampleWork, topic: "Leaf pigments", aggregate_revision: 2 },
+        { etag: '"r2"' },
+      );
+    }
+    return mockJsonResponse(sampleWork, { etag: '"r1"' });
+  });
+}
 
 describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
   it("Mission has one h1, an h2 hero, and a polite status region", async () => {
@@ -80,11 +97,15 @@ describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
   });
 
   it("Prepare is completable with the keyboard alone", async () => {
-    const calls = stubFetch((call) =>
-      call.method === "POST"
-        ? mockJsonResponse(sampleWork, { status: 201, etag: '"r1"' })
-        : mockJsonResponse(sampleWork, { etag: '"r1"' }),
-    );
+    const calls = stubFetch((call) => {
+      if (isWorkArtifactsPath(call.url)) {
+        return mockJsonResponse(emptyWorkArtifacts());
+      }
+      if (call.method === "POST") {
+        return mockJsonResponse(sampleWork, { status: 201, etag: '"r1"' });
+      }
+      return mockJsonResponse(sampleWork, { etag: '"r1"' });
+    });
     renderApp("/teacher-os/prepare");
     const user = userEvent.setup();
 
@@ -110,14 +131,7 @@ describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
   });
 
   it("Work announces save results in a live region", async () => {
-    stubFetch((call) =>
-      call.method === "PATCH"
-        ? mockJsonResponse(
-            { ...sampleWork, topic: "Leaf pigments", aggregate_revision: 2 },
-            { etag: '"r2"' },
-          )
-        : mockJsonResponse(sampleWork, { etag: '"r1"' }),
-    );
+    stubWorkReads();
     renderApp(`/teacher-os/work/${WORK_ID}`);
     const user = userEvent.setup();
 
@@ -135,7 +149,7 @@ describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
   });
 
   it("Work exposes its fields as a definition list under headings", async () => {
-    stubFetch(() => mockJsonResponse(sampleWork, { etag: '"r1"' }));
+    stubWorkReads();
     renderApp(`/teacher-os/work/${WORK_ID}`);
 
     await screen.findByRole("heading", { level: 2, name: /Saved preparation/i });
@@ -143,7 +157,7 @@ describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
     for (const name of [
       /Saved preparation/i,
       /Refine this preparation/i,
-      /What happens next/i,
+      /Preparation draft/i,
     ]) {
       expect(
         screen.getByRole("heading", { level: 2, name }),
