@@ -157,7 +157,7 @@ describe("J. Accessibility of the Mission, Intent, and Work surfaces", () => {
     for (const name of [
       /Saved preparation/i,
       /Refine this preparation/i,
-      /Preparation draft/i,
+      /Preparation kit/i,
     ]) {
       expect(
         screen.getByRole("heading", { level: 2, name }),

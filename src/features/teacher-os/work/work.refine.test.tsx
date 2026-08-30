@@ -61,17 +61,17 @@ describe("F. Work detail reads from the server", () => {
     expect(screen.getByText(sampleWork.updated_at)).toBeInTheDocument();
   });
 
-  it("offers Generate preparation draft when no artifact exists", async () => {
+  it("offers Create preparation kit when no artifact exists", async () => {
     stubWork();
     renderApp(WORK_ROUTE);
 
     expect(
       await screen.findByRole("button", {
-        name: /Generate preparation draft/i,
+        name: /Create preparation kit/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/DEV03 creates the first worksheet draft/i),
+      screen.getByText(/Ask AIEOS to prepare this lesson once/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Worksheet Generator/i)).toBeNull();
     for (const label of [

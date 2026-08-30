@@ -14,8 +14,10 @@ import type {
   TeachingWork,
   TeachingWorkArtifactsResponse,
   TeachingWorkGenerateResponse,
+  TeachingWorkPrepareResponse,
   WorkArtifactItem,
 } from "@/services/api/generated/teachingTypes";
+import { PREPARATION_ARTIFACT_KINDS } from "@/features/teacher-os/work/preparationKit";
 import { TeacherOsShell } from "@/features/teacher-os/shell/TeacherOsShell";
 import { TodayPage } from "@/features/teacher-os/today/TodayPage";
 import { ReviewQueuePage } from "@/features/teacher-os/review/ReviewQueuePage";
@@ -197,6 +199,56 @@ export const sampleWorkArtifact: WorkArtifactItem = {
   educational_quality: sampleEducationalQuality,
 };
 
+const KIT_TITLES: Record<(typeof PREPARATION_ARTIFACT_KINDS)[number], string> = {
+  lesson_plan: "Photosynthesis lesson plan",
+  worksheet: "Photosynthesis worksheet draft",
+  quiz: "Photosynthesis quick quiz",
+  homework: "Photosynthesis homework",
+  answer_key: "Photosynthesis answer key",
+  teacher_notes: "Photosynthesis teacher notes",
+};
+
+export function samplePreparationKitArtifacts(
+  workId: string = WORK_ID,
+): TeachingWorkArtifactsResponse {
+  const runId = "55555555-5555-5555-5555-555555555555";
+  const items: WorkArtifactItem[] = PREPARATION_ARTIFACT_KINDS.map(
+    (kind, index) => {
+      const n = String(index + 1).padStart(8, "0");
+      return {
+        content_id: `${n}-1111-1111-1111-111111111111`,
+        version_id: `${n}-2222-2222-2222-222222222222`,
+        content_type: kind,
+        title: KIT_TITLES[kind],
+        origin: "AI",
+        stewardship_state: "IN_REVIEW",
+        aggregate_revision: 1,
+        educational_quality: sampleEducationalQuality,
+        artifact_kind: kind,
+        generation_run_id: runId,
+      };
+    },
+  );
+  return { work_id: workId, items };
+}
+
+export const samplePrepareResponse: TeachingWorkPrepareResponse = {
+  work_id: WORK_ID,
+  generation_run_id: "55555555-5555-5555-5555-555555555555",
+  preparation: { status: "ready" },
+  artifacts: samplePreparationKitArtifacts().items.map((item) => ({
+    artifact_kind: item.artifact_kind!,
+    content_id: item.content_id,
+    version_id: item.version_id,
+    content_type: item.content_type,
+    title: item.title,
+    stewardship_state: item.stewardship_state,
+    aggregate_revision: item.aggregate_revision,
+    generation_run_id: item.generation_run_id!,
+  })),
+  educational_quality: sampleEducationalQuality,
+};
+
 export function emptyWorkArtifacts(
   workId: string = WORK_ID,
 ): TeachingWorkArtifactsResponse {
@@ -243,6 +295,13 @@ export function isWorkGeneratePath(
   workId: string = WORK_ID,
 ): boolean {
   return url.includes(`/api/v1/teaching/works/${workId}/actions/generate`);
+}
+
+export function isWorkPreparePath(
+  url: string,
+  workId: string = WORK_ID,
+): boolean {
+  return url.includes(`/api/v1/teaching/works/${workId}/actions/prepare`);
 }
 
 export function mockProblemResponse(
