@@ -9,6 +9,7 @@ import {
   mockJsonResponse,
   mockProblemResponse,
   renderApp,
+  sampleContentResponse,
   sampleDetail,
   samplePreparationKitArtifacts,
   samplePrepareResponse,
@@ -66,6 +67,22 @@ function stubWorkSurface(options?: {
       return mockJsonResponse(work, {
         etag: `"r${work.aggregate_revision}"`,
       });
+    }
+    const contentMatch = call.url.match(/^\/api\/v1\/contents\/([^/?]+)$/);
+    if (contentMatch && call.method === "GET") {
+      const contentId = contentMatch[1];
+      const item = artifacts.items.find((row) => row.content_id === contentId);
+      return mockJsonResponse(
+        sampleContentResponse({
+          content_id: contentId,
+          current_version_id: item?.version_id ?? contentId,
+          stewardship_state: item?.stewardship_state ?? "IN_REVIEW",
+          title: item?.title ?? "Artifact",
+          content_type: item?.content_type ?? "worksheet",
+          published_version_id: null,
+        }),
+        { etag: '"r3"' },
+      );
     }
     return mockJsonResponse({ title: "Not Found", status: 404 }, { status: 404 });
   });

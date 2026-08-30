@@ -7,8 +7,10 @@ import {
 } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  getContent,
   PublishPrecheckError,
   publishApprovedContentVersion,
+  type ContentResponse,
 } from "@/services/api/contentApi";
 import {
   getTeachingWork,
@@ -41,11 +43,12 @@ import {
   preparationArtifactLabel,
 } from "./preparationKit";
 import {
-  artifactLifecycleActions,
   artifactViewPath,
   formatArtifactLifecycleSummary,
+  resolveArtifactLifecycle,
   reviewPathForArtifact,
-  summarizeArtifactLifecycle,
+  summarizeResolvedLifecycle,
+  type ArtifactLifecycleActions,
 } from "./lifecycle";
 import "./work.css";
 
@@ -53,10 +56,11 @@ function ArtifactActions(props: {
   item: WorkArtifactItem;
   workId: string;
   kindLabel: string;
+  actions: ArtifactLifecycleActions;
   publishing: boolean;
   onPublish: (item: WorkArtifactItem) => void;
 }) {
-  const actions = artifactLifecycleActions(props.item.stewardship_state);
+  const { actions } = props;
   return (
     <div className="work-actions">
       {actions.showReview ? (
@@ -96,6 +100,10 @@ export function WorkPage() {
   const [work, setWork] = useState<TeachingWork | null>(null);
   const [etag, setEtag] = useState<string | null>(null);
   const [artifacts, setArtifacts] = useState<WorkArtifactItem[]>([]);
+  /** Transient Content GET map for publication truth — never persisted. */
+  const [contentById, setContentById] = useState<
+    Record<string, ContentResponse>
+  >({});
   const [status, setStatus] = useState<
     "loading" | "ready" | "error" | "unavailable"
   >("loading");
@@ -113,14 +121,40 @@ export function WorkPage() {
   const publishInFlightRef = useRef(false);
   const publishKeysRef = useRef<Map<string, string>>(new Map());
 
-  const applyArtifacts = useCallback((items: WorkArtifactItem[]) => {
-    setArtifacts(items);
+  const hydrateContents = useCallback(async (items: WorkArtifactItem[]) => {
+    if (items.length === 0) {
+      setContentById({});
+      return;
+    }
+    const entries = await Promise.all(
+      items.map(async (item) => {
+        try {
+          const response = await getContent(item.content_id);
+          return [item.content_id, response.data] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const next: Record<string, ContentResponse> = {};
+    for (const entry of entries) {
+      if (entry) next[entry[0]] = entry[1];
+    }
+    setContentById(next);
   }, []);
+
+  const applyArtifacts = useCallback(
+    async (items: WorkArtifactItem[]) => {
+      setArtifacts(items);
+      await hydrateContents(items);
+    },
+    [hydrateContents],
+  );
 
   const loadArtifacts = useCallback(
     async (id: string) => {
       const response = await listTeachingWorkArtifacts(id);
-      applyArtifacts(response.data.items);
+      await applyArtifacts(response.data.items);
       return response.data;
     },
     [applyArtifacts],
@@ -143,7 +177,7 @@ export function WorkPage() {
         setWork(workResponse.data);
         setEtag(workResponse.etag);
         setForm(formFromWork(workResponse.data));
-        applyArtifacts(artifactsResponse.data.items);
+        await applyArtifacts(artifactsResponse.data.items);
         setStatus("ready");
       } catch (error) {
         setErrorMessage(userMessageForApiError(error));
@@ -156,6 +190,14 @@ export function WorkPage() {
   useEffect(() => {
     void loadWork();
   }, [loadWork]);
+
+  function lifecycleFor(item: WorkArtifactItem): ArtifactLifecycleActions {
+    return resolveArtifactLifecycle(
+      item.version_id,
+      item.stewardship_state,
+      contentById[item.content_id] ?? null,
+    );
+  }
 
   async function onSave(event: FormEvent) {
     event.preventDefault();
@@ -281,7 +323,7 @@ export function WorkPage() {
   async function onPublish(item: WorkArtifactItem) {
     if (!work) return;
     if (publishInFlightRef.current) return;
-    const actions = artifactLifecycleActions(item.stewardship_state);
+    const actions = lifecycleFor(item);
     if (!actions.showPublish) return;
 
     const actionKey = `${item.content_id}:${item.version_id}`;
@@ -372,7 +414,9 @@ export function WorkPage() {
   const showPrepareCta = !hasKit && artifacts.length === 0;
   const lifecycleSummary =
     artifacts.length > 0
-      ? formatArtifactLifecycleSummary(summarizeArtifactLifecycle(artifacts))
+      ? formatArtifactLifecycleSummary(
+          summarizeResolvedLifecycle(artifacts.map((item) => lifecycleFor(item))),
+        )
       : null;
   const anyBusy = busy || preparing || publishingContentId !== null;
 
@@ -539,11 +583,7 @@ export function WorkPage() {
                 change elsewhere is reported instead of silently overwritten.
               </p>
               <div className="work-actions">
-                <button
-                  type="submit"
-                  className="btn"
-                  disabled={anyBusy}
-                >
+                <button type="submit" className="btn" disabled={anyBusy}>
                   Save changes
                 </button>
                 <button
@@ -573,22 +613,24 @@ export function WorkPage() {
                 published automatically.
               </p>
               {lifecycleSummary ? (
-                <p className="work-lifecycle-summary" data-testid="work-lifecycle-summary">
+                <p
+                  className="work-lifecycle-summary"
+                  data-testid="work-lifecycle-summary"
+                >
                   {lifecycleSummary}
                 </p>
               ) : null}
               <ul className="work-kit-list">
                 {kitArtifacts.map((item) => {
                   const kindLabel = preparationArtifactLabel(item.artifact_kind);
-                  const actions = artifactLifecycleActions(
-                    item.stewardship_state,
-                  );
+                  const actions = lifecycleFor(item);
                   return (
                     <li key={`${item.content_id}:${item.version_id}`}>
                       <article
                         className="work-kit-card"
                         aria-labelledby={`kit-${item.artifact_kind}-heading`}
                         data-stewardship={item.stewardship_state}
+                        data-lifecycle={actions.kind}
                         data-content-id={item.content_id}
                       >
                         <h3 id={`kit-${item.artifact_kind}-heading`}>
@@ -631,6 +673,7 @@ export function WorkPage() {
                           item={item}
                           workId={work.work_id}
                           kindLabel={kindLabel}
+                          actions={actions}
                           publishing={publishingContentId === item.content_id}
                           onPublish={(target) => void onPublish(target)}
                         />
@@ -653,24 +696,22 @@ export function WorkPage() {
               className="panel work-artifact-card"
               aria-labelledby="work-artifact-heading"
               data-stewardship={legacyArtifact.stewardship_state}
+              data-lifecycle={lifecycleFor(legacyArtifact).kind}
               data-content-id={legacyArtifact.content_id}
             >
               <h2 id="work-artifact-heading">Worksheet draft</h2>
               {lifecycleSummary ? (
-                <p className="work-lifecycle-summary" data-testid="work-lifecycle-summary">
+                <p
+                  className="work-lifecycle-summary"
+                  data-testid="work-lifecycle-summary"
+                >
                   {lifecycleSummary}
                 </p>
               ) : null}
               <dl className="work-meta">
                 <div>
                   <dt>Status</dt>
-                  <dd>
-                    {
-                      artifactLifecycleActions(
-                        legacyArtifact.stewardship_state,
-                      ).label
-                    }
-                  </dd>
+                  <dd>{lifecycleFor(legacyArtifact).label}</dd>
                 </div>
                 <div>
                   <dt>Title</dt>
@@ -700,6 +741,7 @@ export function WorkPage() {
                 item={legacyArtifact}
                 workId={work.work_id}
                 kindLabel="draft"
+                actions={lifecycleFor(legacyArtifact)}
                 publishing={publishingContentId === legacyArtifact.content_id}
                 onPublish={(target) => void onPublish(target)}
               />

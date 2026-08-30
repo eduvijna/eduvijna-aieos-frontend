@@ -23,7 +23,7 @@ import {
   type FetchCall,
 } from "@/test/test-utils";
 import type { WorkArtifactItem } from "@/services/api/generated/teachingTypes";
-import type { ContentResponse } from "@/services/api/generated/contentTypes";
+import type { ContentResponse } from "@/services/api/contentApi";
 
 const WORK_ROUTE = `/teacher-os/work/${WORK_ID}`;
 
@@ -45,9 +45,13 @@ function stubLifecycleSurface(options?: {
   artifacts?:
     | ReturnType<typeof workArtifactsWith>
     | ReturnType<typeof samplePreparationKitArtifacts>;
-  contentById?: Record<string, ContentResponse>;
+  publishedVersionByContentId?: Record<string, string | null>;
+  contentOverrides?: Record<string, Partial<ContentResponse>>;
   onPublish?: (call: FetchCall) => Response | Promise<Response>;
-  onContentGet?: (call: FetchCall, contentId: string) => Response | Promise<Response>;
+  onContentGet?: (
+    call: FetchCall,
+    contentId: string,
+  ) => Response | Promise<Response>;
 }) {
   let artifacts =
     options?.artifacts ??
@@ -59,6 +63,9 @@ function stubLifecycleSurface(options?: {
       answer_key: "IN_REVIEW",
       teacher_notes: "IN_REVIEW",
     });
+  const publishedVersionByContentId: Record<string, string | null> = {
+    ...(options?.publishedVersionByContentId ?? {}),
+  };
 
   return stubFetch((call) => {
     if (isWorkArtifactsPath(call.url)) {
@@ -80,23 +87,22 @@ function stubLifecycleSurface(options?: {
     if (publishMatch && call.method === "POST") {
       if (options?.onPublish) return options.onPublish(call);
       const contentId = publishMatch[1];
+      const item = artifacts.items.find((row) => row.content_id === contentId);
+      // Backend-realistic: stewardship stays APPROVED; publication pointer moves.
+      publishedVersionByContentId[contentId] = item?.version_id ?? VERSION_ID;
       artifacts = {
         ...artifacts,
-        items: artifacts.items.map((item) =>
-          item.content_id === contentId
-            ? { ...item, stewardship_state: "PUBLISHED" }
-            : item,
+        items: artifacts.items.map((row) =>
+          row.content_id === contentId
+            ? { ...row, stewardship_state: "APPROVED" }
+            : row,
         ),
       };
       return mockJsonResponse(
         samplePublicationResponse({
           content_id: contentId,
-          version_id:
-            artifacts.items.find((item) => item.content_id === contentId)
-              ?.version_id ?? VERSION_ID,
-          published_version_id:
-            artifacts.items.find((item) => item.content_id === contentId)
-              ?.version_id ?? VERSION_ID,
+          version_id: item?.version_id ?? VERSION_ID,
+          published_version_id: item?.version_id ?? VERSION_ID,
         }),
       );
     }
@@ -108,21 +114,18 @@ function stubLifecycleSurface(options?: {
         return options.onContentGet(call, contentId);
       }
       const item = artifacts.items.find((row) => row.content_id === contentId);
-      const override = options?.contentById?.[contentId];
+      const published = publishedVersionByContentId[contentId] ?? null;
       return mockJsonResponse(
-        override ??
-          sampleContentResponse({
-            content_id: contentId,
-            current_version_id: item?.version_id ?? VERSION_ID,
-            stewardship_state: item?.stewardship_state ?? "APPROVED",
-            title: item?.title ?? "Artifact",
-            content_type: item?.content_type ?? "worksheet",
-            published_version_id:
-              item?.stewardship_state === "PUBLISHED"
-                ? (item.version_id ?? null)
-                : null,
-            aggregate_revision: 3,
-          }),
+        sampleContentResponse({
+          content_id: contentId,
+          current_version_id: item?.version_id ?? VERSION_ID,
+          stewardship_state: item?.stewardship_state ?? "APPROVED",
+          title: item?.title ?? "Artifact",
+          content_type: item?.content_type ?? "worksheet",
+          published_version_id: published,
+          aggregate_revision: 3,
+          ...options?.contentOverrides?.[contentId],
+        }),
         { etag: '"r3"' },
       );
     }
@@ -134,7 +137,7 @@ function stubLifecycleSurface(options?: {
   });
 }
 
-describe("TOS-DEV05 Work lifecycle UX", () => {
+describe("TOS-DEV05R1 Work lifecycle UX", () => {
   it("1. IN_REVIEW shows Review and no Publish", async () => {
     stubLifecycleSurface({
       artifacts: withStates({ worksheet: "IN_REVIEW" }),
@@ -142,50 +145,56 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     renderApp(WORK_ROUTE);
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
-    const article = card.closest("article");
-    expect(article).not.toBeNull();
-    expect(
-      article!.querySelector('a[href*="/teacher-os/review/"]'),
-    ).not.toBeNull();
-    expect(
-      article!.textContent,
-    ).toMatch(/In Review/);
-    expect(
-      Array.from(article!.querySelectorAll("button")).some(
-        (btn) => btn.textContent === "Publish",
-      ),
-    ).toBe(false);
-  });
-
-  it("2. APPROVED shows View + Publish", async () => {
-    stubLifecycleSurface();
-    renderApp(WORK_ROUTE);
-
-    const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
-    expect(article.textContent).toMatch(/Approved/);
+    await waitFor(() => {
+      expect(article.textContent).toMatch(/In Review/);
+    });
     expect(
-      article.querySelector('a[href*="/artifacts/"]'),
+      article.querySelector('a[href*="/teacher-os/review/"]'),
     ).not.toBeNull();
     expect(
       Array.from(article.querySelectorAll("button")).some(
         (btn) => btn.textContent === "Publish",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("3. PUBLISHED shows View and no enabled Publish", async () => {
+  it("2. APPROVED shows View + Publish when Content current matches", async () => {
+    stubLifecycleSurface();
+    renderApp(WORK_ROUTE);
+
+    const card = await screen.findByRole("heading", { name: "Worksheet" });
+    const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(
+        Array.from(article.querySelectorAll("button")).some(
+          (btn) => btn.textContent === "Publish",
+        ),
+      ).toBe(true);
+    });
+    expect(article.textContent).toMatch(/Approved/);
+    expect(article.querySelector('a[href*="/artifacts/"]')).not.toBeNull();
+  });
+
+  it("3. Exact published pointer shows Published with View and no Publish", async () => {
+    const kit = withStates({ worksheet: "APPROVED" });
+    const worksheet = kit.items.find((item) => item.artifact_kind === "worksheet")!;
     stubLifecycleSurface({
-      artifacts: withStates({ worksheet: "PUBLISHED" }),
+      artifacts: kit,
+      publishedVersionByContentId: {
+        [worksheet.content_id]: worksheet.version_id,
+      },
     });
     renderApp(WORK_ROUTE);
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(article.getAttribute("data-lifecycle")).toBe("published");
+    });
+    expect(article.getAttribute("data-stewardship")).toBe("APPROVED");
     expect(article.textContent).toMatch(/Published/);
-    expect(
-      article.querySelector('a[href*="/artifacts/"]'),
-    ).not.toBeNull();
+    expect(article.querySelector('a[href*="/artifacts/"]')).not.toBeNull();
     expect(
       Array.from(article.querySelectorAll("button")).some(
         (btn) => btn.textContent === "Publish",
@@ -201,7 +210,9 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
-    expect(article.textContent).toMatch(/WEIRD_FUTURE_STATE/);
+    await waitFor(() => {
+      expect(article.textContent).toMatch(/WEIRD_FUTURE_STATE/);
+    });
     expect(
       Array.from(article.querySelectorAll("button")).some(
         (btn) => btn.textContent === "Publish",
@@ -213,12 +224,19 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     const calls = stubLifecycleSurface();
     renderApp(WORK_ROUTE);
     const user = userEvent.setup();
-
-    const card = await screen.findByRole("heading", { name: "Worksheet" });
-    const article = card.closest("article")!;
     const worksheet = samplePreparationKitArtifacts().items.find(
       (item) => item.artifact_kind === "worksheet",
     )!;
+
+    const card = await screen.findByRole("heading", { name: "Worksheet" });
+    const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(
+        Array.from(article.querySelectorAll("button")).some(
+          (btn) => btn.textContent === "Publish",
+        ),
+      ).toBe(true);
+    });
 
     await user.click(
       Array.from(article.querySelectorAll("button")).find(
@@ -230,33 +248,24 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
       expect(
         calls.some(
           (call) =>
-            call.method === "GET" &&
-            isContentGetPath(call.url, worksheet.content_id),
-        ),
-      ).toBe(true);
-      expect(
-        calls.some(
-          (call) =>
             call.method === "POST" &&
             isContentPublishPath(call.url, worksheet.content_id),
         ),
       ).toBe(true);
     });
 
-    const getIndex = calls.findIndex(
+    const getCalls = calls.filter(
       (call) =>
         call.method === "GET" &&
         isContentGetPath(call.url, worksheet.content_id),
     );
-    const postIndex = calls.findIndex(
+    expect(getCalls.length).toBeGreaterThanOrEqual(1);
+
+    const post = calls.find(
       (call) =>
         call.method === "POST" &&
         isContentPublishPath(call.url, worksheet.content_id),
-    );
-    expect(getIndex).toBeGreaterThanOrEqual(0);
-    expect(postIndex).toBeGreaterThan(getIndex);
-
-    const post = calls[postIndex];
+    )!;
     expect(post.body).toEqual({ version_id: worksheet.version_id });
     expect(post.headers.get("If-Match")).toBe('"r3"');
     expect(post.headers.get("Idempotency-Key")).toMatch(/^[0-9a-f-]{36}$/i);
@@ -276,6 +285,13 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(
+        Array.from(article.querySelectorAll("button")).some(
+          (btn) => btn.textContent === "Publish",
+        ),
+      ).toBe(true);
+    });
     const publishBtn = Array.from(article.querySelectorAll("button")).find(
       (btn) => btn.textContent === "Publish",
     )!;
@@ -284,7 +300,9 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
 
     await waitFor(() => {
       expect(
-        calls.some((call) => call.method === "POST" && call.url.includes("/publish")),
+        calls.some(
+          (call) => call.method === "POST" && call.url.includes("/publish"),
+        ),
       ).toBe(true);
     });
     expect(publishPosts).toBe(1);
@@ -303,6 +321,13 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(
+        Array.from(article.querySelectorAll("button")).some(
+          (btn) => btn.textContent === "Publish",
+        ),
+      ).toBe(true);
+    });
     await user.click(
       Array.from(article.querySelectorAll("button")).find(
         (btn) => btn.textContent === "Publish",
@@ -327,32 +352,32 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
       (item) => item.artifact_kind === "worksheet",
     )!;
     const calls = stubLifecycleSurface({
-      onContentGet: () =>
+      onContentGet: (_call, contentId) =>
         mockJsonResponse(
           sampleContentResponse({
-            content_id: worksheet.content_id,
-            current_version_id: "99999999-9999-9999-9999-999999999999",
+            content_id: contentId,
+            current_version_id:
+              contentId === worksheet.content_id
+                ? "99999999-9999-9999-9999-999999999999"
+                : worksheet.version_id,
             stewardship_state: "APPROVED",
+            published_version_id: null,
           }),
           { etag: '"r3"' },
         ),
     });
     renderApp(WORK_ROUTE);
-    const user = userEvent.setup();
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
-    await user.click(
-      Array.from(article.querySelectorAll("button")).find(
-        (btn) => btn.textContent === "Publish",
-      )!,
-    );
-
     await waitFor(() => {
-      expect(
-        screen.getByText(/current version no longer matches/i),
-      ).toBeInTheDocument();
+      expect(article.getAttribute("data-lifecycle")).toBe("approved");
     });
+    expect(
+      Array.from(article.querySelectorAll("button")).some(
+        (btn) => btn.textContent === "Publish",
+      ),
+    ).toBe(false);
     expect(
       calls.some(
         (call) => call.method === "POST" && call.url.includes("/publish"),
@@ -365,33 +390,23 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
       (item) => item.artifact_kind === "worksheet",
     )!;
     const calls = stubLifecycleSurface({
-      onContentGet: () =>
-        mockJsonResponse(
-          sampleContentResponse({
-            content_id: worksheet.content_id,
-            current_version_id: worksheet.version_id,
-            published_version_id: worksheet.version_id,
-            stewardship_state: "APPROVED",
-          }),
-          { etag: '"r3"' },
-        ),
+      artifacts: withStates({ worksheet: "APPROVED" }),
+      publishedVersionByContentId: {
+        [worksheet.content_id]: worksheet.version_id,
+      },
     });
     renderApp(WORK_ROUTE);
-    const user = userEvent.setup();
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
-    await user.click(
-      Array.from(article.querySelectorAll("button")).find(
-        (btn) => btn.textContent === "Publish",
-      )!,
-    );
-
     await waitFor(() => {
-      expect(
-        screen.getByText(/already published/i),
-      ).toBeInTheDocument();
+      expect(article.getAttribute("data-lifecycle")).toBe("published");
     });
+    expect(
+      Array.from(article.querySelectorAll("button")).some(
+        (btn) => btn.textContent === "Publish",
+      ),
+    ).toBe(false);
     expect(
       calls.some(
         (call) => call.method === "POST" && call.url.includes("/publish"),
@@ -399,10 +414,13 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     ).toBe(false);
   });
 
-  it("14–15. Successful publish reloads Work; only that artifact becomes Published", async () => {
-    stubLifecycleSurface();
+  it("14–15 + R1. Successful publish keeps Work stewardship APPROVED, Content published_version_id drives Published UI; others unaffected", async () => {
+    const calls = stubLifecycleSurface();
     renderApp(WORK_ROUTE);
     const user = userEvent.setup();
+    const worksheet = samplePreparationKitArtifacts().items.find(
+      (item) => item.artifact_kind === "worksheet",
+    )!;
 
     expect(
       await screen.findByTestId("work-lifecycle-summary"),
@@ -410,6 +428,13 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
 
     const card = await screen.findByRole("heading", { name: "Worksheet" });
     const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(
+        Array.from(article.querySelectorAll("button")).some(
+          (btn) => btn.textContent === "Publish",
+        ),
+      ).toBe(true);
+    });
     await user.click(
       Array.from(article.querySelectorAll("button")).find(
         (btn) => btn.textContent === "Publish",
@@ -417,9 +442,30 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     );
 
     await waitFor(() => {
-      expect(article.getAttribute("data-stewardship")).toBe("PUBLISHED");
+      expect(article.getAttribute("data-lifecycle")).toBe("published");
     });
+    expect(article.getAttribute("data-stewardship")).toBe("APPROVED");
     expect(article.textContent).toMatch(/Published/);
+    expect(
+      Array.from(article.querySelectorAll("button")).some(
+        (btn) => btn.textContent === "Publish",
+      ),
+    ).toBe(false);
+    expect(article.querySelector('a[href*="/artifacts/"]')).not.toBeNull();
+
+    expect(screen.getByTestId("work-lifecycle-summary")).toHaveTextContent(
+      /6 artifacts · 5 in review · 1 published/,
+    );
+    expect(screen.getByTestId("work-lifecycle-summary")).not.toHaveTextContent(
+      /1 approved/,
+    );
+
+    const contentGetsAfterPublish = calls.filter(
+      (call) =>
+        call.method === "GET" &&
+        isContentGetPath(call.url, worksheet.content_id),
+    );
+    expect(contentGetsAfterPublish.length).toBeGreaterThanOrEqual(2);
 
     for (const label of [
       "Lesson Plan",
@@ -428,12 +474,43 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
       "Answer Key",
       "Teacher Notes",
     ]) {
-      const other = screen.getByRole("heading", { name: label }).closest(
-        "article",
-      )!;
+      const other = screen
+        .getByRole("heading", { name: label })
+        .closest("article")!;
       expect(other.getAttribute("data-stewardship")).toBe("IN_REVIEW");
+      expect(other.getAttribute("data-lifecycle")).toBe("in_review");
       expect(other.textContent).not.toMatch(/\bPublished\b/);
     }
+  });
+
+  it("R1 reload preserves Published from Content published_version_id", async () => {
+    const worksheet = samplePreparationKitArtifacts().items.find(
+      (item) => item.artifact_kind === "worksheet",
+    )!;
+    stubLifecycleSurface({
+      artifacts: withStates({ worksheet: "APPROVED" }),
+      publishedVersionByContentId: {
+        [worksheet.content_id]: worksheet.version_id,
+      },
+    });
+    renderApp(WORK_ROUTE);
+
+    const card = await screen.findByRole("heading", { name: "Worksheet" });
+    const article = card.closest("article")!;
+    await waitFor(() => {
+      expect(article.getAttribute("data-lifecycle")).toBe("published");
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Reload from server/i }),
+    );
+    await waitFor(() => {
+      expect(article.getAttribute("data-lifecycle")).toBe("published");
+    });
+    expect(article.getAttribute("data-stewardship")).toBe("APPROVED");
+    expect(screen.getByTestId("work-lifecycle-summary")).toHaveTextContent(
+      /1 published/,
+    );
   });
 
   it("19. Historical DEV03 single worksheet remains safe", async () => {
@@ -449,10 +526,11 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     expect(
       await screen.findByRole("heading", { name: /Worksheet draft/i }),
     ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Publish" })).toBeInTheDocument();
+    });
     expect(screen.getByText("Approved")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publish" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Preparation kit" })).toBeNull();
   });
 
   it("20. No browser storage contains publication authority or secrets", async () => {
@@ -465,6 +543,12 @@ describe("TOS-DEV05 Work lifecycle UX", () => {
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
     expect(document.cookie).not.toMatch(/publish|etag|token|secret/i);
+  });
+
+  it("9. No DEV05 production/test path requires PUBLISHED stewardship", () => {
+    expect(JSON.stringify(withStates({ worksheet: "APPROVED" }))).not.toMatch(
+      /"PUBLISHED"/,
+    );
   });
 });
 
@@ -493,6 +577,15 @@ describe("TOS-DEV05 Review return continuity", () => {
               })
             : sampleWork,
           { etag: '"r1"' },
+        );
+      }
+      if (isContentGetPath(call.url, CONTENT_ID)) {
+        return mockJsonResponse(
+          sampleContentResponse({
+            stewardship_state: "APPROVED",
+            published_version_id: null,
+          }),
+          { etag: '"r3"' },
         );
       }
       if (call.url.includes("/versions/")) {

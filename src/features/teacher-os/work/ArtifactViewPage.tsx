@@ -10,11 +10,9 @@ import {
   getContentVersion,
   publishApprovedContentVersion,
   PublishPrecheckError,
+  type ContentResponse,
+  type ContentVersionResponse,
 } from "@/services/api/contentApi";
-import type {
-  ContentResponse,
-  ContentVersionResponse,
-} from "@/services/api/generated/contentTypes";
 import { useSession } from "@/services/session/useSession";
 import {
   ApiError,
@@ -27,14 +25,14 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import { SafeJsonPayload } from "@/features/teacher-os/review/SafeJsonPayload";
 import { preparationArtifactLabel } from "./preparationKit";
 import {
-  artifactLifecycleActions,
   publicationStatusLabel,
+  resolveContentVersionLifecycle,
 } from "./lifecycle";
 import "./work.css";
 
 /**
- * Durable Teacher OS artifact viewer for APPROVED / PUBLISHED (and other)
- * Work artifacts. Uses Generic Content GET APIs — not Review Queue detail.
+ * Durable Teacher OS artifact viewer. Uses Generic Content GET APIs —
+ * not Review Queue detail. Publication truth is published_version_id.
  */
 export function ArtifactViewPage() {
   const {
@@ -86,9 +84,8 @@ export function ArtifactViewPage() {
   async function onPublish() {
     if (!content || !version) return;
     if (publishInFlightRef.current) return;
-    const actions = artifactLifecycleActions(content.stewardship_state);
+    const actions = resolveContentVersionLifecycle(version.version_id, content);
     if (!actions.showPublish) return;
-    if (content.published_version_id === version.version_id) return;
 
     if (!publishKeyRef.current) {
       publishKeyRef.current = crypto.randomUUID();
@@ -162,7 +159,7 @@ export function ArtifactViewPage() {
   }
 
   const actions = content
-    ? artifactLifecycleActions(content.stewardship_state)
+    ? resolveContentVersionLifecycle(versionId, content)
     : null;
   const kindLabel = preparationArtifactLabel(
     content?.content_type ?? version?.schema_id,
@@ -212,8 +209,12 @@ export function ArtifactViewPage() {
                 <dd>{kindLabel}</dd>
               </div>
               <div>
-                <dt>Stewardship</dt>
+                <dt>Lifecycle</dt>
                 <dd>{actions?.label}</dd>
+              </div>
+              <div>
+                <dt>Stewardship</dt>
+                <dd>{content.stewardship_state}</dd>
               </div>
               <div>
                 <dt>Publication</dt>
@@ -250,7 +251,8 @@ export function ArtifactViewPage() {
             </dl>
             <p className="muted">
               Loaded from Generic Content. This view does not use the Review
-              Queue pending-review projection.
+              Queue pending-review projection. Published means this exact
+              version is the published pointer — not a stewardship state.
             </p>
           </section>
 
@@ -263,7 +265,10 @@ export function ArtifactViewPage() {
             <h2 id="artifact-actions-heading">Actions</h2>
             <div className="work-actions">
               {workId ? (
-                <Link className="btn btn-secondary" to={`/teacher-os/work/${workId}`}>
+                <Link
+                  className="btn btn-secondary"
+                  to={`/teacher-os/work/${workId}`}
+                >
                   Back to preparation
                 </Link>
               ) : null}

@@ -1,10 +1,12 @@
 import { apiRequest } from "./client";
-import type {
-  ContentPublishRequest,
-  ContentResponse,
-  ContentVersionResponse,
-  PublicationResponse,
-} from "./generated/contentTypes";
+import type { components } from "./generated/aieos-v1";
+
+export type ContentResponse = components["schemas"]["ContentResponse"];
+export type ContentVersionResponse =
+  components["schemas"]["ContentVersionResponse"];
+export type ContentPublishRequest =
+  components["schemas"]["ContentPublishRequest"];
+export type PublicationResponse = components["schemas"]["PublicationResponse"];
 
 export async function getContent(contentId: string) {
   return apiRequest<ContentResponse>(`/api/v1/contents/${contentId}`, {

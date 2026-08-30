@@ -28,7 +28,21 @@ export function artifactViewPath(
   return `/teacher-os/work/${workId}/artifacts/${item.content_id}/versions/${item.version_id}`;
 }
 
+/** Authoritative Generic Content facts needed for publication truth. */
+export type ContentPublicationFacts = {
+  stewardship_state: string;
+  current_version_id: string | null;
+  published_version_id: string | null;
+};
+
+export type ResolvedLifecycleKind =
+  | "published"
+  | "in_review"
+  | "approved"
+  | "other";
+
 export type ArtifactLifecycleActions = {
+  kind: ResolvedLifecycleKind;
   label: string;
   showReview: boolean;
   showView: boolean;
@@ -36,42 +50,106 @@ export type ArtifactLifecycleActions = {
 };
 
 /**
- * Fail-closed action matrix from authoritative stewardship_state.
- * Never invent Publish from artifact kind alone.
+ * Resolve display lifecycle from Work generation-bound version + Content facts.
+ *
+ * Published is NOT a stewardship state. Publication truth is solely:
+ * `published_version_id === generationBoundVersionId`.
  */
-export function artifactLifecycleActions(
-  stewardshipState: string,
+export function resolveArtifactLifecycle(
+  generationBoundVersionId: string,
+  workStewardshipState: string,
+  content: ContentPublicationFacts | null | undefined,
 ): ArtifactLifecycleActions {
-  switch (stewardshipState) {
-    case "IN_REVIEW":
-      return {
-        label: stewardshipStatusLabel(stewardshipState),
-        showReview: true,
-        showView: false,
-        showPublish: false,
-      };
-    case "APPROVED":
-      return {
-        label: stewardshipStatusLabel(stewardshipState),
-        showReview: false,
-        showView: true,
-        showPublish: true,
-      };
-    case "PUBLISHED":
-      return {
-        label: stewardshipStatusLabel(stewardshipState),
-        showReview: false,
-        showView: true,
-        showPublish: false,
-      };
-    default:
-      return {
-        label: stewardshipStatusLabel(stewardshipState),
-        showReview: false,
-        showView: false,
-        showPublish: false,
-      };
+  if (content?.published_version_id === generationBoundVersionId) {
+    return {
+      kind: "published",
+      label: "Published",
+      showReview: false,
+      showView: true,
+      showPublish: false,
+    };
   }
+
+  if (workStewardshipState === "IN_REVIEW") {
+    return {
+      kind: "in_review",
+      label: "In Review",
+      showReview: true,
+      showView: false,
+      showPublish: false,
+    };
+  }
+
+  if (workStewardshipState === "APPROVED") {
+    const currentMatches =
+      content != null &&
+      content.current_version_id === generationBoundVersionId;
+    return {
+      kind: "approved",
+      label: "Approved",
+      showReview: false,
+      showView: true,
+      // Fail closed until Content is hydrated and current version matches.
+      showPublish: currentMatches,
+    };
+  }
+
+  return {
+    kind: "other",
+    label: stewardshipStatusLabel(workStewardshipState),
+    showReview: false,
+    showView: false,
+    showPublish: false,
+  };
+}
+
+/**
+ * Artifact viewer uses authoritative Content stewardship + publication pointer
+ * (Work projection is not loaded on this route).
+ */
+export function resolveContentVersionLifecycle(
+  generationBoundVersionId: string,
+  content: ContentPublicationFacts,
+): ArtifactLifecycleActions {
+  if (content.published_version_id === generationBoundVersionId) {
+    return {
+      kind: "published",
+      label: "Published",
+      showReview: false,
+      showView: true,
+      showPublish: false,
+    };
+  }
+
+  if (content.stewardship_state === "IN_REVIEW") {
+    return {
+      kind: "in_review",
+      label: "In Review",
+      showReview: true,
+      showView: false,
+      showPublish: false,
+    };
+  }
+
+  if (content.stewardship_state === "APPROVED") {
+    const currentMatches =
+      content.current_version_id === generationBoundVersionId;
+    return {
+      kind: "approved",
+      label: "Approved",
+      showReview: false,
+      showView: true,
+      showPublish: currentMatches,
+    };
+  }
+
+  return {
+    kind: "other",
+    label: stewardshipStatusLabel(content.stewardship_state),
+    showReview: false,
+    showView: false,
+    showPublish: false,
+  };
 }
 
 export type ArtifactLifecycleSummary = {
@@ -82,23 +160,23 @@ export type ArtifactLifecycleSummary = {
   other: number;
 };
 
-/** Display projection only — never persist. */
-export function summarizeArtifactLifecycle(
-  items: WorkArtifactItem[],
+/** Display projection only — never persist. Counts use resolved lifecycle. */
+export function summarizeResolvedLifecycle(
+  resolutions: ArtifactLifecycleActions[],
 ): ArtifactLifecycleSummary {
   let inReview = 0;
   let approved = 0;
   let published = 0;
   let other = 0;
-  for (const item of items) {
-    switch (item.stewardship_state) {
-      case "IN_REVIEW":
+  for (const resolution of resolutions) {
+    switch (resolution.kind) {
+      case "in_review":
         inReview += 1;
         break;
-      case "APPROVED":
+      case "approved":
         approved += 1;
         break;
-      case "PUBLISHED":
+      case "published":
         published += 1;
         break;
       default:
@@ -106,7 +184,7 @@ export function summarizeArtifactLifecycle(
     }
   }
   return {
-    total: items.length,
+    total: resolutions.length,
     inReview,
     approved,
     published,
@@ -119,9 +197,7 @@ export function formatArtifactLifecycleSummary(
 ): string {
   const parts = [`${summary.total} artifact${summary.total === 1 ? "" : "s"}`];
   if (summary.inReview > 0) {
-    parts.push(
-      `${summary.inReview} in review`,
-    );
+    parts.push(`${summary.inReview} in review`);
   }
   if (summary.approved > 0) {
     parts.push(`${summary.approved} approved`);
@@ -136,20 +212,11 @@ export function formatArtifactLifecycleSummary(
 }
 
 export function publicationStatusLabel(
-  content: {
-    stewardship_state: string;
-    published_version_id: string | null;
-  },
+  content: ContentPublicationFacts,
   versionId: string,
 ): string {
-  if (
-    content.stewardship_state === "PUBLISHED" &&
-    content.published_version_id === versionId
-  ) {
-    return "Published";
-  }
   if (content.published_version_id === versionId) {
-    return "Published (this version)";
+    return "Published";
   }
   if (content.published_version_id) {
     return "Another version is published";

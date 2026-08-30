@@ -31,7 +31,7 @@ import type {
   ContentResponse,
   ContentVersionResponse,
   PublicationResponse,
-} from "@/services/api/generated/contentTypes";
+} from "@/services/api/contentApi";
 
 export const DEV_SESSION: DevSession = {
   apiOrigin: "http://127.0.0.1:8000",

@@ -111,6 +111,7 @@ async function connectDevSession(page: Page) {
 async function mockTeachingApis(page: Page) {
   let work: Work | null = null;
   let artifacts: Artifact[] = [];
+  const publishedVersionByContentId: Record<string, string | null> = {};
   const seen = {
     createKeys: [] as string[],
     refineKeys: [] as string[],
@@ -380,8 +381,7 @@ async function mockTeachingApis(page: Page) {
           locale: "en-IN",
           stewardship_state: item?.stewardship_state ?? "IN_REVIEW",
           current_version_id: versionId,
-          published_version_id:
-            item?.stewardship_state === "PUBLISHED" ? versionId : null,
+          published_version_id: publishedVersionByContentId[contentId] ?? null,
           aggregate_revision: item?.aggregate_revision ?? 2,
           created_at: "2026-08-27T04:00:00Z",
           updated_at: "2026-08-27T09:00:00Z",
@@ -425,15 +425,17 @@ async function mockTeachingApis(page: Page) {
         expect(headers["idempotency-key"]).toBeTruthy();
         const body = route.request().postDataJSON() as { version_id: string };
         expect(body.version_id).toBe(versionId);
+        // Stewardship remains APPROVED; publication pointer is authoritative.
         artifacts = artifacts.map((item) =>
           item.content_id === contentId
             ? {
                 ...item,
-                stewardship_state: "PUBLISHED",
+                stewardship_state: "APPROVED",
                 aggregate_revision: 4,
               }
             : item,
         );
+        publishedVersionByContentId[contentId] = versionId;
         seen.publishKeys.push(headers["idempotency-key"]);
         await route.fulfill({
           status: 200,
@@ -629,6 +631,8 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
 
     await worksheetCard.getByRole("button", { name: "Publish" }).click();
     await expect(worksheetCard).toContainText("Published");
+    await expect(worksheetCard).toHaveAttribute("data-stewardship", "APPROVED");
+    await expect(worksheetCard).toHaveAttribute("data-lifecycle", "published");
     await expect(
       worksheetCard.getByRole("button", { name: "Publish" }),
     ).toHaveCount(0);

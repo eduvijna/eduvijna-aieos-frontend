@@ -18,8 +18,6 @@ export function stewardshipStatusLabel(state: string): string {
       return "Draft";
     case "ARCHIVED":
       return "Archived";
-    case "PUBLISHED":
-      return "Published";
     default:
       return state;
   }

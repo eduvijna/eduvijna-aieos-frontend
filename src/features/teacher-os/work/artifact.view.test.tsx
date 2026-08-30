@@ -15,7 +15,7 @@ import {
 
 const VIEW_ROUTE = `/teacher-os/work/${WORK_ID}/artifacts/${CONTENT_ID}/versions/${VERSION_ID}`;
 
-describe("TOS-DEV05 Artifact viewer", () => {
+describe("TOS-DEV05R1 Artifact viewer", () => {
   it("18. Uses Generic Content GET + version GET, not Review Queue detail", async () => {
     const calls = stubFetch((call) => {
       if (isContentGetPath(call.url, CONTENT_ID)) {
@@ -75,13 +75,14 @@ describe("TOS-DEV05 Artifact viewer", () => {
     ).toBe(false);
   });
 
-  it("renders Published status for published exact version", async () => {
+  it("7. APPROVED + exact published_version_id shows Published and no Publish", async () => {
     stubFetch((call) => {
       if (isContentGetPath(call.url, CONTENT_ID)) {
         return mockJsonResponse(
           sampleContentResponse({
-            stewardship_state: "PUBLISHED",
+            stewardship_state: "APPROVED",
             published_version_id: VERSION_ID,
+            current_version_id: VERSION_ID,
           }),
           { etag: '"r4"' },
         );
@@ -103,6 +104,7 @@ describe("TOS-DEV05 Artifact viewer", () => {
       "section",
     );
     expect(meta).toHaveTextContent("Published");
+    expect(meta).toHaveTextContent("APPROVED");
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
   });
 });
