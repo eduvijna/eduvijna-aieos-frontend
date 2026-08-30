@@ -65,6 +65,12 @@
   margin: 0 0 var(--space-4);
 }
 
+.work-lifecycle-summary {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-muted);
+  font-size: 0.95rem;
+}
+
 .work-kit-list {
   list-style: none;
   margin: 0 0 var(--space-4);

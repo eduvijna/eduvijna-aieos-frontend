@@ -24,8 +24,14 @@ import { ReviewQueuePage } from "@/features/teacher-os/review/ReviewQueuePage";
 import { ReviewDetailPage } from "@/features/teacher-os/review/ReviewDetailPage";
 import { PreparePage } from "@/features/teacher-os/prepare/PreparePage";
 import { WorkPage } from "@/features/teacher-os/work/WorkPage";
+import { ArtifactViewPage } from "@/features/teacher-os/work/ArtifactViewPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
+import type {
+  ContentResponse,
+  ContentVersionResponse,
+  PublicationResponse,
+} from "@/services/api/generated/contentTypes";
 
 export const DEV_SESSION: DevSession = {
   apiOrigin: "http://127.0.0.1:8000",
@@ -83,6 +89,10 @@ export function renderApp(
             />
             <Route path="prepare" element={<PreparePage />} />
             <Route path="work/:workId" element={<WorkPage />} />
+            <Route
+              path="work/:workId/artifacts/:contentId/versions/:versionId"
+              element={<ArtifactViewPage />}
+            />
             <Route
               path="teach"
               element={<PlaceholderPage title="Teach" slug="teach" />}
@@ -302,6 +312,81 @@ export function isWorkPreparePath(
   workId: string = WORK_ID,
 ): boolean {
   return url.includes(`/api/v1/teaching/works/${workId}/actions/prepare`);
+}
+
+export function isContentGetPath(url: string, contentId: string): boolean {
+  return (
+    url === `/api/v1/contents/${contentId}` ||
+    url.startsWith(`/api/v1/contents/${contentId}?`)
+  );
+}
+
+export function isContentVersionGetPath(
+  url: string,
+  contentId: string,
+  versionId: string,
+): boolean {
+  return (
+    url === `/api/v1/contents/${contentId}/versions/${versionId}` ||
+    url.startsWith(`/api/v1/contents/${contentId}/versions/${versionId}?`)
+  );
+}
+
+export function isContentPublishPath(url: string, contentId: string): boolean {
+  return url.includes(`/api/v1/contents/${contentId}/actions/publish`);
+}
+
+export function sampleContentResponse(
+  overrides?: Partial<ContentResponse>,
+): ContentResponse {
+  return {
+    content_id: CONTENT_ID,
+    content_type: "worksheet",
+    title: sampleWorkArtifact.title,
+    description: "Generated draft",
+    locale: "en-IN",
+    stewardship_state: "APPROVED",
+    current_version_id: VERSION_ID,
+    published_version_id: null,
+    aggregate_revision: 3,
+    created_at: "2026-08-27T04:00:00Z",
+    updated_at: "2026-08-27T09:00:00Z",
+    archived_at: null,
+    ...overrides,
+  };
+}
+
+export function sampleContentVersionResponse(
+  overrides?: Partial<ContentVersionResponse>,
+): ContentVersionResponse {
+  return {
+    content_id: CONTENT_ID,
+    version_id: VERSION_ID,
+    version_number: 1,
+    schema_id: "worksheet",
+    schema_version: 1,
+    payload: { prompt: "Name one part of a leaf", note: "safe" },
+    payload_sha256: "abc123",
+    origin: "AI",
+    parent_version_id: null,
+    created_at: "2026-08-27T08:00:00Z",
+    ...overrides,
+  };
+}
+
+export function samplePublicationResponse(
+  overrides?: Partial<PublicationResponse>,
+): PublicationResponse {
+  return {
+    publication_id: "99999999-9999-9999-9999-999999999999",
+    content_id: CONTENT_ID,
+    version_id: VERSION_ID,
+    published_version_id: VERSION_ID,
+    published_at: "2026-08-27T10:00:00Z",
+    approval_decision_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    aggregate_revision: 4,
+    ...overrides,
+  };
 }
 
 export function mockProblemResponse(

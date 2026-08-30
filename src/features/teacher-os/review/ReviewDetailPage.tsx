@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   getReviewQueueDetail,
   postReviewDecision,
@@ -10,6 +10,7 @@ import { ApiError, userMessageForApiError } from "@/shared/errors/ApiError";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
+import { safeWorkReturnPath } from "@/features/teacher-os/work/lifecycle";
 import { SafeJsonPayload } from "./SafeJsonPayload";
 import "./review.css";
 
@@ -17,6 +18,7 @@ type ActionMode = "idle" | "request-changes" | "reject";
 
 export function ReviewDetailPage() {
   const { contentId = "", versionId = "" } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isConnected, isProduction } = useSession();
   const [detail, setDetail] = useState<TeacherReviewQueueDetail | null>(null);
@@ -30,6 +32,8 @@ export function ReviewDetailPage() {
   const [mode, setMode] = useState<ActionMode>("idle");
   const [comment, setComment] = useState("");
   const [rejectConfirmed, setRejectConfirmed] = useState(false);
+
+  const workReturnPath = safeWorkReturnPath(searchParams.get("fromWork"));
 
   const loadDetail = useCallback(async (options?: { silent?: boolean }) => {
     if (!contentId || !versionId) return;
@@ -60,6 +64,28 @@ export function ReviewDetailPage() {
     void loadDetail();
   }, [loadDetail]);
 
+  function returnAfterDecision(action: "approve" | "request-changes" | "reject") {
+    if (workReturnPath) {
+      setActionMessage(
+        action === "approve"
+          ? "Approved. Returning to preparation…"
+          : action === "request-changes"
+            ? "Changes requested. Returning to preparation…"
+            : "Rejected. Returning to preparation…",
+      );
+      navigate(workReturnPath);
+      return;
+    }
+    setActionMessage(
+      action === "approve"
+        ? "Approved. Returning to queue…"
+        : action === "request-changes"
+          ? "Changes requested."
+          : "Rejected.",
+    );
+    navigate("/teacher-os/review");
+  }
+
   async function runDecision(
     action: "approve" | "request-changes" | "reject",
     body: { comment?: string | null },
@@ -74,14 +100,7 @@ export function ReviewDetailPage() {
     setActionMessage("");
     try {
       await postReviewDecision(contentId, versionId, action, body, etag);
-      setActionMessage(
-        action === "approve"
-          ? "Approved. Returning to queue…"
-          : action === "request-changes"
-            ? "Changes requested."
-            : "Rejected.",
-      );
-      navigate("/teacher-os/review");
+      returnAfterDecision(action);
     } catch (error) {
       if (error instanceof ApiError && error.code === "precondition_failed") {
         setActionMessage(userMessageForApiError(error));
@@ -124,7 +143,15 @@ export function ReviewDetailPage() {
     <article className="stack review-detail-page">
       <header>
         <p className="muted">
-          <Link to="/teacher-os/review">Review Queue</Link> · Artifact
+          {workReturnPath ? (
+            <>
+              <Link to={workReturnPath}>Preparation</Link> · Review
+            </>
+          ) : (
+            <>
+              <Link to="/teacher-os/review">Review Queue</Link> · Artifact
+            </>
+          )}
         </p>
         <h1>{detail?.title ?? "Review artifact"}</h1>
       </header>

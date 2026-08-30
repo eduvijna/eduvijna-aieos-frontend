@@ -5,6 +5,7 @@ import { ReviewQueuePage } from "@/features/teacher-os/review/ReviewQueuePage";
 import { ReviewDetailPage } from "@/features/teacher-os/review/ReviewDetailPage";
 import { PreparePage } from "@/features/teacher-os/prepare/PreparePage";
 import { WorkPage } from "@/features/teacher-os/work/WorkPage";
+import { ArtifactViewPage } from "@/features/teacher-os/work/ArtifactViewPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
 
@@ -22,6 +23,10 @@ export function AppRouter() {
         />
         <Route path="prepare" element={<PreparePage />} />
         <Route path="work/:workId" element={<WorkPage />} />
+        <Route
+          path="work/:workId/artifacts/:contentId/versions/:versionId"
+          element={<ArtifactViewPage />}
+        />
         <Route
           path="teach"
           element={<PlaceholderPage title="Teach" slug="teach" />}

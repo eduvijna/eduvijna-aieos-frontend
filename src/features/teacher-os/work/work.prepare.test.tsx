@@ -156,13 +156,13 @@ describe("TOS-DEV04-I09 Work preparation kit", () => {
       screen.getByRole("link", { name: /Review Lesson Plan/i }),
     ).toHaveAttribute(
       "href",
-      "/teacher-os/review/00000001-1111-1111-1111-111111111111/versions/00000001-2222-2222-2222-222222222222",
+      `/teacher-os/review/00000001-1111-1111-1111-111111111111/versions/00000001-2222-2222-2222-222222222222?fromWork=${WORK_ID}`,
     );
     expect(
       screen.getByRole("link", { name: /Review Quick Quiz/i }),
     ).toHaveAttribute(
       "href",
-      "/teacher-os/review/00000003-1111-1111-1111-111111111111/versions/00000003-2222-2222-2222-222222222222",
+      `/teacher-os/review/00000003-1111-1111-1111-111111111111/versions/00000003-2222-2222-2222-222222222222?fromWork=${WORK_ID}`,
     );
     expect(
       screen.queryByRole("button", { name: /Create preparation kit/i }),
@@ -240,7 +240,7 @@ describe("TOS-DEV04-I09 Work preparation kit", () => {
     expect(
       await screen.findByRole("heading", { name: /Worksheet draft/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Waiting for review/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/In Review/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/age_appropriate/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Review draft/i }),
