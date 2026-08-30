@@ -1,9 +1,15 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  generateTeachingWork,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Link, useParams } from "react-router-dom";
+import {
   getTeachingWork,
   listTeachingWorkArtifacts,
+  prepareTeachingWork,
   refineTeachingWork,
 } from "@/services/api/teachingWorkApi";
 import type {
@@ -25,31 +31,44 @@ import {
   formFromWork,
   type WorkForm,
 } from "./refine";
+import {
+  isCompletePreparationKit,
+  orderPreparationArtifacts,
+  preparationArtifactLabel,
+  reviewPathForArtifact,
+} from "./preparationKit";
 import { stewardshipStatusLabel } from "./stewardshipLabel";
 import "./work.css";
 
 export function WorkPage() {
   const { workId = "" } = useParams();
-  const navigate = useNavigate();
   const { isConnected, isProduction } = useSession();
   const [work, setWork] = useState<TeachingWork | null>(null);
   const [etag, setEtag] = useState<string | null>(null);
-  const [artifact, setArtifact] = useState<WorkArtifactItem | null>(null);
+  const [artifacts, setArtifacts] = useState<WorkArtifactItem[]>([]);
   const [status, setStatus] = useState<
     "loading" | "ready" | "error" | "unavailable"
   >("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
-  const [generateMessage, setGenerateMessage] = useState("");
+  const [prepareMessage, setPrepareMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [form, setForm] = useState<WorkForm>(EMPTY_WORK_FORM);
+  const prepareInFlightRef = useRef(false);
 
-  const loadArtifacts = useCallback(async (id: string) => {
-    const response = await listTeachingWorkArtifacts(id);
-    setArtifact(response.data.items[0] ?? null);
-    return response.data;
+  const applyArtifacts = useCallback((items: WorkArtifactItem[]) => {
+    setArtifacts(items);
   }, []);
+
+  const loadArtifacts = useCallback(
+    async (id: string) => {
+      const response = await listTeachingWorkArtifacts(id);
+      applyArtifacts(response.data.items);
+      return response.data;
+    },
+    [applyArtifacts],
+  );
 
   const loadWork = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -68,14 +87,14 @@ export function WorkPage() {
         setWork(workResponse.data);
         setEtag(workResponse.etag);
         setForm(formFromWork(workResponse.data));
-        setArtifact(artifactsResponse.data.items[0] ?? null);
+        applyArtifacts(artifactsResponse.data.items);
         setStatus("ready");
       } catch (error) {
         setErrorMessage(userMessageForApiError(error));
         setStatus("error");
       }
     },
-    [workId, isConnected, isProduction],
+    [workId, isConnected, isProduction, applyArtifacts],
   );
 
   useEffect(() => {
@@ -125,22 +144,25 @@ export function WorkPage() {
     }
   }
 
-  async function onGenerate() {
+  async function onPrepare() {
     if (!work) return;
+    if (prepareInFlightRef.current) return;
     if (!etag) {
-      setGenerateMessage(
+      setPrepareMessage(
         "Missing ETag from the last read (client contract error). Reload and retry.",
       );
       return;
     }
 
-    setGenerating(true);
-    setGenerateMessage("Creating your preparation draft…");
+    const idempotencyKey = crypto.randomUUID();
+    prepareInFlightRef.current = true;
+    setPreparing(true);
+    setPrepareMessage("Creating your preparation kit…");
     try {
-      const response = await generateTeachingWork(work.work_id, etag);
-      const { content_id, version_id } = response.data.artifact;
-      navigate(
-        `/teacher-os/review/${content_id}/versions/${version_id}`,
+      await prepareTeachingWork(work.work_id, etag, idempotencyKey);
+      await loadWork({ silent: true });
+      setPrepareMessage(
+        "Preparation kit created. Each artifact is waiting for your review — nothing is approved or published yet.",
       );
     } catch (error) {
       const problemCode = problemCodeFromApiError(error);
@@ -151,27 +173,31 @@ export function WorkPage() {
           problemCode === "work_generation_revision_conflict")
       ) {
         await loadWork({ silent: true });
-        setGenerateMessage(
-          "This preparation changed since you loaded it. The latest values are shown — generate again from this revision.",
+        setPrepareMessage(
+          "This preparation changed since you loaded it. The latest values are shown — create the preparation kit again from this revision.",
         );
       } else if (problemCode === "work_generation_in_progress") {
-        setGenerateMessage(
-          "A preparation draft is already being created for this request. Wait a moment, then reload if it does not appear.",
+        setPrepareMessage(
+          "A preparation kit is already being created for this request. Wait a moment, then reload if it does not appear.",
         );
       } else if (problemCode === "work_generation_already_exists") {
         try {
           await loadArtifacts(work.work_id);
-          setGenerateMessage(
-            "A preparation draft already exists for this Work. Review it below.",
+          setPrepareMessage(
+            "A preparation kit already exists for this Work. Review the artifacts below.",
           );
         } catch {
-          setGenerateMessage(
-            "A preparation draft already exists for this Work. Reload to open it.",
+          setPrepareMessage(
+            "A preparation kit already exists for this Work. Reload to open it.",
           );
         }
+      } else if (problemCode === "preparation_recovery_invariant_violation") {
+        setPrepareMessage(
+          "The preparation kit could not be confirmed safely. No complete kit is shown. Reload and try again, or contact support if this continues.",
+        );
       } else if (problemCode === "educational_quality_failed") {
-        setGenerateMessage(
-          "No draft was created. The educational quality checks did not pass. Adjust the preparation and try again later.",
+        setPrepareMessage(
+          "No complete preparation kit was created. The educational quality checks did not pass. Adjust the preparation and try again later.",
         );
       } else if (
         problemCode === "model_provider_unavailable" ||
@@ -179,19 +205,20 @@ export function WorkPage() {
         problemCode === "model_output_invalid" ||
         (error instanceof ApiError && error.code === "unavailable")
       ) {
-        setGenerateMessage(
-          "The draft could not be created right now. Try again later.",
+        setPrepareMessage(
+          "The preparation kit could not be created right now. Try again later.",
         );
       } else if (
         error instanceof ApiError &&
         error.code === "precondition_required"
       ) {
-        setGenerateMessage(userMessageForApiError(error));
+        setPrepareMessage(userMessageForApiError(error));
       } else {
-        setGenerateMessage(userMessageForApiError(error));
+        setPrepareMessage(userMessageForApiError(error));
       }
     } finally {
-      setGenerating(false);
+      prepareInFlightRef.current = false;
+      setPreparing(false);
     }
   }
 
@@ -199,9 +226,11 @@ export function WorkPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  const reviewPath = artifact
-    ? `/teacher-os/review/${artifact.content_id}/versions/${artifact.version_id}`
-    : null;
+  const hasKit = isCompletePreparationKit(artifacts);
+  const kitArtifacts = hasKit ? orderPreparationArtifacts(artifacts) : [];
+  const legacyArtifact =
+    !hasKit && artifacts.length > 0 ? artifacts[0] : null;
+  const showPrepareCta = !hasKit && artifacts.length === 0;
 
   return (
     <article className="stack work-page">
@@ -366,13 +395,17 @@ export function WorkPage() {
                 change elsewhere is reported instead of silently overwritten.
               </p>
               <div className="work-actions">
-                <button type="submit" className="btn" disabled={busy || generating}>
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={busy || preparing}
+                >
                   Save changes
                 </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  disabled={busy || generating}
+                  disabled={busy || preparing}
                   onClick={() => void loadWork()}
                 >
                   Reload from server
@@ -384,7 +417,82 @@ export function WorkPage() {
             </form>
           </section>
 
-          {artifact && reviewPath ? (
+          {hasKit ? (
+            <section
+              className="panel work-kit"
+              aria-labelledby="work-kit-heading"
+            >
+              <h2 id="work-kit-heading">Preparation kit</h2>
+              <p>
+                Six artifacts were created for this lesson. Each one is still
+                waiting for your review — generating the kit does not approve or
+                publish anything.
+              </p>
+              <ul className="work-kit-list">
+                {kitArtifacts.map((item) => (
+                  <li key={`${item.content_id}:${item.version_id}`}>
+                    <article
+                      className="work-kit-card"
+                      aria-labelledby={`kit-${item.artifact_kind}-heading`}
+                    >
+                      <h3 id={`kit-${item.artifact_kind}-heading`}>
+                        {preparationArtifactLabel(item.artifact_kind)}
+                      </h3>
+                      <dl className="work-meta">
+                        <div>
+                          <dt>Title</dt>
+                          <dd>{item.title}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>
+                            {stewardshipStatusLabel(item.stewardship_state)}
+                          </dd>
+                        </div>
+                      </dl>
+                      {item.educational_quality ? (
+                        <div className="work-eq">
+                          <h4 className="work-eq-heading">
+                            Educational checks
+                          </h4>
+                          <p className="muted">
+                            Result: {item.educational_quality.status}
+                          </p>
+                          <ul className="work-eq-list">
+                            {item.educational_quality.checks.map((check) => (
+                              <li key={check.code}>
+                                <span className="work-eq-code">
+                                  {check.code}
+                                </span>
+                                {": "}
+                                {check.passed ? "passed" : "not passed"}
+                                {" — "}
+                                {check.explanation}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      <div className="work-actions">
+                        <Link
+                          className="btn"
+                          to={reviewPathForArtifact(item)}
+                        >
+                          Review{" "}
+                          {preparationArtifactLabel(item.artifact_kind)}
+                        </Link>
+                      </div>
+                    </article>
+                  </li>
+                ))}
+              </ul>
+              <p className="status-region" role="status" aria-live="polite">
+                {prepareMessage}
+              </p>
+            </section>
+          ) : null}
+
+          {legacyArtifact ? (
             <section
               className="panel work-artifact-card"
               aria-labelledby="work-artifact-heading"
@@ -393,21 +501,23 @@ export function WorkPage() {
               <dl className="work-meta">
                 <div>
                   <dt>Status</dt>
-                  <dd>{stewardshipStatusLabel(artifact.stewardship_state)}</dd>
+                  <dd>
+                    {stewardshipStatusLabel(legacyArtifact.stewardship_state)}
+                  </dd>
                 </div>
                 <div>
                   <dt>Title</dt>
-                  <dd>{artifact.title}</dd>
+                  <dd>{legacyArtifact.title}</dd>
                 </div>
               </dl>
-              {artifact.educational_quality ? (
+              {legacyArtifact.educational_quality ? (
                 <div className="work-eq">
                   <h3 className="work-eq-heading">Educational checks</h3>
                   <p className="muted">
-                    Result: {artifact.educational_quality.status}
+                    Result: {legacyArtifact.educational_quality.status}
                   </p>
                   <ul className="work-eq-list">
-                    {artifact.educational_quality.checks.map((check) => (
+                    {legacyArtifact.educational_quality.checks.map((check) => (
                       <li key={check.code}>
                         <span className="work-eq-code">{check.code}</span>
                         {": "}
@@ -420,37 +530,43 @@ export function WorkPage() {
                 </div>
               ) : null}
               <div className="work-actions">
-                <Link className="btn" to={reviewPath}>
+                <Link
+                  className="btn"
+                  to={reviewPathForArtifact(legacyArtifact)}
+                >
                   Review draft
                 </Link>
               </div>
               <p className="status-region" role="status" aria-live="polite">
-                {generateMessage}
+                {prepareMessage}
               </p>
             </section>
-          ) : (
-            <section className="panel" aria-labelledby="work-generate-heading">
-              <h2 id="work-generate-heading">Preparation draft</h2>
+          ) : null}
+
+          {showPrepareCta ? (
+            <section className="panel" aria-labelledby="work-prepare-heading">
+              <h2 id="work-prepare-heading">Preparation kit</h2>
               <p>
-                Generate a preparation draft from this saved Work. DEV03 creates
-                the first worksheet draft for review — nothing is approved or
-                published from here.
+                Ask AIEOS to prepare this lesson once. That creates the lesson
+                plan, worksheet, quick quiz, homework, answer key, and teacher
+                notes for review — nothing is approved or published from here.
               </p>
               <div className="work-actions">
                 <button
                   type="button"
                   className="btn"
-                  disabled={busy || generating}
-                  onClick={() => void onGenerate()}
+                  disabled={busy || preparing}
+                  aria-busy={preparing}
+                  onClick={() => void onPrepare()}
                 >
-                  Generate preparation draft
+                  Create preparation kit
                 </button>
               </div>
               <p className="status-region" role="status" aria-live="assertive">
-                {generateMessage}
+                {prepareMessage}
               </p>
             </section>
-          )}
+          ) : null}
         </>
       ) : null}
     </article>

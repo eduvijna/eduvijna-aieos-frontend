@@ -1,5 +1,5 @@
 /**
- * Focused Teaching Work / Today's Mission / generate types for TOS-DEV03 Lane A.
+ * Focused Teaching Work / Today's Mission / generate / prepare types.
  * Prefer regenerating full OpenAPI types via `pnpm generate:api-types` when practical.
  * Full generated output (when present) lives alongside this module as `aieos-v1.ts`.
  */
@@ -120,6 +120,30 @@ export type TeachingWorkGenerateResponse = {
   educational_quality: EducationalQuality;
 };
 
+/** One of the exact-six preparation kit artifacts from POST …/actions/prepare. */
+export type PreparationArtifact = {
+  artifact_kind: string;
+  content_id: string;
+  version_id: string;
+  content_type: string;
+  title: string;
+  stewardship_state: string;
+  aggregate_revision: number;
+  generation_run_id: string;
+};
+
+export type PreparationStatus = {
+  status: string;
+};
+
+export type TeachingWorkPrepareResponse = {
+  work_id: string;
+  generation_run_id: string;
+  preparation: PreparationStatus;
+  artifacts: PreparationArtifact[];
+  educational_quality: EducationalQuality;
+};
+
 /** Teacher-facing artifact row from GET …/artifacts. */
 export type WorkArtifactItem = {
   content_id: string;
@@ -130,6 +154,9 @@ export type WorkArtifactItem = {
   stewardship_state: string;
   aggregate_revision: number;
   educational_quality: EducationalQuality | null;
+  /** Present for DEV04 preparation-kit rows; may be null for historical DEV03. */
+  artifact_kind?: string | null;
+  generation_run_id?: string | null;
 };
 
 export type TeachingWorkArtifactsResponse = {

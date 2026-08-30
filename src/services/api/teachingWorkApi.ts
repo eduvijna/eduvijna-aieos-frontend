@@ -5,6 +5,7 @@ import type {
   TeachingWorkCreateRequest,
   TeachingWorkGenerateResponse,
   TeachingWorkList,
+  TeachingWorkPrepareResponse,
   TeachingWorkRefineRequest,
 } from "./generated/teachingTypes";
 
@@ -63,17 +64,44 @@ export async function refineTeachingWork(
 }
 
 /**
- * Ask AIEOS to create the first preparation draft for this Work.
+ * Ask AIEOS to create the first preparation draft for this Work (DEV03).
  * Capability / model / prompt selection is server-side — no body.
+ * Prefer {@link prepareTeachingWork} for the DEV04 Preparation Kit UX.
  */
-export async function generateTeachingWork(workId: string, etag: string) {
+export async function generateTeachingWork(
+  workId: string,
+  etag: string,
+  idempotencyKey?: string,
+) {
   return apiRequest<TeachingWorkGenerateResponse>(
     `/api/v1/teaching/works/${workId}/actions/generate`,
     {
       method: "POST",
       headers: {
         "If-Match": etag,
-        "Idempotency-Key": crypto.randomUUID(),
+        "Idempotency-Key": idempotencyKey ?? crypto.randomUUID(),
+      },
+    },
+  );
+}
+
+/**
+ * Ask AIEOS to create the six-artifact Preparation Kit for this Work (DEV04).
+ * Capability / model / prompt selection is server-side — no body.
+ * Pass a stable `idempotencyKey` for one logical teacher action.
+ */
+export async function prepareTeachingWork(
+  workId: string,
+  etag: string,
+  idempotencyKey?: string,
+) {
+  return apiRequest<TeachingWorkPrepareResponse>(
+    `/api/v1/teaching/works/${workId}/actions/prepare`,
+    {
+      method: "POST",
+      headers: {
+        "If-Match": etag,
+        "Idempotency-Key": idempotencyKey ?? crypto.randomUUID(),
       },
     },
   );
