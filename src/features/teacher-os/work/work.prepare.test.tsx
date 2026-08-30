@@ -9,6 +9,7 @@ import {
   mockJsonResponse,
   mockProblemResponse,
   renderApp,
+  sampleContentResponse,
   sampleDetail,
   samplePreparationKitArtifacts,
   samplePrepareResponse,
@@ -66,6 +67,22 @@ function stubWorkSurface(options?: {
       return mockJsonResponse(work, {
         etag: `"r${work.aggregate_revision}"`,
       });
+    }
+    const contentMatch = call.url.match(/^\/api\/v1\/contents\/([^/?]+)$/);
+    if (contentMatch && call.method === "GET") {
+      const contentId = contentMatch[1];
+      const item = artifacts.items.find((row) => row.content_id === contentId);
+      return mockJsonResponse(
+        sampleContentResponse({
+          content_id: contentId,
+          current_version_id: item?.version_id ?? contentId,
+          stewardship_state: item?.stewardship_state ?? "IN_REVIEW",
+          title: item?.title ?? "Artifact",
+          content_type: item?.content_type ?? "worksheet",
+          published_version_id: null,
+        }),
+        { etag: '"r3"' },
+      );
     }
     return mockJsonResponse({ title: "Not Found", status: 404 }, { status: 404 });
   });
@@ -156,13 +173,13 @@ describe("TOS-DEV04-I09 Work preparation kit", () => {
       screen.getByRole("link", { name: /Review Lesson Plan/i }),
     ).toHaveAttribute(
       "href",
-      "/teacher-os/review/00000001-1111-1111-1111-111111111111/versions/00000001-2222-2222-2222-222222222222",
+      `/teacher-os/review/00000001-1111-1111-1111-111111111111/versions/00000001-2222-2222-2222-222222222222?fromWork=${WORK_ID}`,
     );
     expect(
       screen.getByRole("link", { name: /Review Quick Quiz/i }),
     ).toHaveAttribute(
       "href",
-      "/teacher-os/review/00000003-1111-1111-1111-111111111111/versions/00000003-2222-2222-2222-222222222222",
+      `/teacher-os/review/00000003-1111-1111-1111-111111111111/versions/00000003-2222-2222-2222-222222222222?fromWork=${WORK_ID}`,
     );
     expect(
       screen.queryByRole("button", { name: /Create preparation kit/i }),
@@ -240,7 +257,7 @@ describe("TOS-DEV04-I09 Work preparation kit", () => {
     expect(
       await screen.findByRole("heading", { name: /Worksheet draft/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Waiting for review/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/In Review/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/age_appropriate/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Review draft/i }),

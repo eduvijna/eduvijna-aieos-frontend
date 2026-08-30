@@ -70,6 +70,4 @@ export function orderPreparationArtifacts(
   });
 }
 
-export function reviewPathForArtifact(item: WorkArtifactItem): string {
-  return `/teacher-os/review/${item.content_id}/versions/${item.version_id}`;
-}
+export { reviewPathForArtifact } from "./lifecycle";

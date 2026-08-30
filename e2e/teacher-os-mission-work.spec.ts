@@ -111,10 +111,12 @@ async function connectDevSession(page: Page) {
 async function mockTeachingApis(page: Page) {
   let work: Work | null = null;
   let artifacts: Artifact[] = [];
+  const publishedVersionByContentId: Record<string, string | null> = {};
   const seen = {
     createKeys: [] as string[],
     refineKeys: [] as string[],
     prepareKeys: [] as string[],
+    publishKeys: [] as string[],
   };
 
   const educationalQuality = {
@@ -338,6 +340,11 @@ async function mockTeachingApis(page: Page) {
         const headers = route.request().headers();
         expect(headers["if-match"]).toBe('"r2"');
         expect(headers["idempotency-key"]).toBeTruthy();
+        artifacts = artifacts.map((item) =>
+          item.content_id === contentId
+            ? { ...item, stewardship_state: "APPROVED", aggregate_revision: 3 }
+            : item,
+        );
         await route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -351,6 +358,96 @@ async function mockTeachingApis(page: Page) {
             decided_at: "2026-08-27T09:00:00Z",
             stewardship_state: "APPROVED",
             aggregate_revision: 3,
+          }),
+        });
+      },
+    );
+
+    await page.route(`**/api/v1/contents/${contentId}`, async (route) => {
+      if (route.request().url().includes("/actions/") || route.request().url().includes("/versions/")) {
+        await route.fallback();
+        return;
+      }
+      const item = artifacts.find((row) => row.content_id === contentId);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { ETag: '"r3"' },
+        body: JSON.stringify({
+          content_id: contentId,
+          content_type: contentType,
+          title,
+          description: "Generated draft",
+          locale: "en-IN",
+          stewardship_state: item?.stewardship_state ?? "IN_REVIEW",
+          current_version_id: versionId,
+          published_version_id: publishedVersionByContentId[contentId] ?? null,
+          aggregate_revision: item?.aggregate_revision ?? 2,
+          created_at: "2026-08-27T04:00:00Z",
+          updated_at: "2026-08-27T09:00:00Z",
+          archived_at: null,
+        }),
+      });
+    });
+
+    await page.route(
+      `**/api/v1/contents/${contentId}/versions/${versionId}`,
+      async (route) => {
+        if (route.request().url().includes("/actions/")) {
+          await route.fallback();
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            content_id: contentId,
+            version_id: versionId,
+            version_number: 1,
+            schema_id: contentType,
+            schema_version: 1,
+            payload: { prompt: "Name one part of a leaf", note: "safe" },
+            payload_sha256: "deadbeef",
+            origin: "AI",
+            parent_version_id: null,
+            created_at: "2026-08-27T08:00:00Z",
+          }),
+        });
+      },
+    );
+
+    await page.route(
+      `**/api/v1/contents/${contentId}/actions/publish`,
+      async (route) => {
+        expect(route.request().method()).toBe("POST");
+        const headers = route.request().headers();
+        expect(headers["if-match"]).toBe('"r3"');
+        expect(headers["idempotency-key"]).toBeTruthy();
+        const body = route.request().postDataJSON() as { version_id: string };
+        expect(body.version_id).toBe(versionId);
+        // Stewardship remains APPROVED; publication pointer is authoritative.
+        artifacts = artifacts.map((item) =>
+          item.content_id === contentId
+            ? {
+                ...item,
+                stewardship_state: "APPROVED",
+                aggregate_revision: 4,
+              }
+            : item,
+        );
+        publishedVersionByContentId[contentId] = versionId;
+        seen.publishKeys.push(headers["idempotency-key"]);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            publication_id: "99999999-9999-9999-9999-999999999999",
+            content_id: contentId,
+            version_id: versionId,
+            published_version_id: versionId,
+            published_at: "2026-08-27T10:00:00Z",
+            approval_decision_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            aggregate_revision: 4,
           }),
         });
       },
@@ -467,7 +564,7 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
     );
   });
 
-  test("Today → Work → Create preparation kit → six artifacts → Review → Approve", async ({
+  test("Today → Work → Create preparation kit → six artifacts → Review Worksheet → Approve → return to Work → View → Publish → Published", async ({
     page,
   }) => {
     const seen = await mockTeachingApis(page);
@@ -499,26 +596,61 @@ test.describe("Teacher OS mission → intent → work smoke", () => {
     }
     expect(seen.prepareKeys).toHaveLength(1);
 
-    await page.getByRole("link", { name: /Review Lesson Plan/i }).click();
+    await page.getByRole("link", { name: /Review Worksheet/i }).click();
     await expect(page).toHaveURL(
       new RegExp(
-        `/teacher-os/review/${CONTENT_IDS[0]}/versions/${VERSION_IDS[0]}$`,
+        `/teacher-os/review/${CONTENT_IDS[1]}/versions/${VERSION_IDS[1]}\\?fromWork=${WORK_ID}$`,
       ),
     );
-    await expect(
-      page.getByRole("heading", { name: /E2E lesson plan/i }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
-
-    await page.goBack();
-    await page.getByRole("link", { name: /Review Worksheet/i }).click();
     await expect(
       page.getByRole("heading", { name: /E2E worksheet draft/i }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Approve" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/teacher-os/work/${WORK_ID}$`));
+    const worksheetCard = page
+      .locator("article.work-kit-card")
+      .filter({ has: page.getByRole("heading", { name: "Worksheet" }) });
+    await expect(worksheetCard).toContainText("Approved");
     await expect(
-      page.getByRole("heading", { name: "Review Queue" }),
+      worksheetCard.getByRole("button", { name: "Publish" }),
     ).toBeVisible();
+    await expect(worksheetCard.getByRole("link", { name: "View" })).toBeVisible();
+
+    await worksheetCard.getByRole("link", { name: "View" }).click();
+    await expect(page).toHaveURL(
+      new RegExp(
+        `/teacher-os/work/${WORK_ID}/artifacts/${CONTENT_IDS[1]}/versions/${VERSION_IDS[1]}$`,
+      ),
+    );
+    await expect(page.getByText(/does not use the Review Queue/i)).toBeVisible();
+    await expect(page.getByText("Name one part of a leaf")).toBeVisible();
+
+    await page.getByRole("link", { name: /Back to preparation/i }).click();
+    await expect(page).toHaveURL(new RegExp(`/teacher-os/work/${WORK_ID}$`));
+
+    await worksheetCard.getByRole("button", { name: "Publish" }).click();
+    await expect(worksheetCard).toContainText("Published");
+    await expect(worksheetCard).toHaveAttribute("data-stewardship", "APPROVED");
+    await expect(worksheetCard).toHaveAttribute("data-lifecycle", "published");
+    await expect(
+      worksheetCard.getByRole("button", { name: "Publish" }),
+    ).toHaveCount(0);
+    expect(seen.publishKeys).toHaveLength(1);
+
+    for (const label of [
+      "Lesson Plan",
+      "Quick Quiz",
+      "Homework",
+      "Answer Key",
+      "Teacher Notes",
+    ]) {
+      const other = page
+        .locator("article.work-kit-card")
+        .filter({ has: page.getByRole("heading", { name: label }) });
+      await expect(other).toContainText("In Review");
+      await expect(other).not.toContainText("Published");
+    }
   });
 
   test("Prepare offers no generator grid; Work uses Create preparation kit", async ({

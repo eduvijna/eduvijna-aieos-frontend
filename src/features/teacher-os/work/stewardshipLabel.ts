@@ -5,7 +5,7 @@
 export function stewardshipStatusLabel(state: string): string {
   switch (state) {
     case "IN_REVIEW":
-      return "Waiting for review";
+      return "In Review";
     case "APPROVED":
       return "Approved";
     case "CHANGES_REQUESTED":
@@ -18,8 +18,6 @@ export function stewardshipStatusLabel(state: string): string {
       return "Draft";
     case "ARCHIVED":
       return "Archived";
-    case "PUBLISHED":
-      return "Published";
     default:
       return state;
   }
