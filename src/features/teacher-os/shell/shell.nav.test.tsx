@@ -55,15 +55,23 @@ describe("A. Shell nav + Mission-first landing", () => {
     expect(screen.queryByText(/Not implemented/i)).not.toBeInTheDocument();
   });
 
-  it("still labels the remaining surfaces as development placeholders", async () => {
-    stubFetch(() => mockJsonResponse(missionWithPrepareTomorrow()));
+  it("navigates to the real Teach Assignments surface instead of a placeholder", async () => {
+    stubFetch((call) => {
+      if (call.url.includes("/teaching/assignments")) {
+        return mockJsonResponse({ items: [], has_more: false });
+      }
+      return mockJsonResponse(missionWithPrepareTomorrow());
+    });
 
     renderApp("/teacher-os/today", DEV_SESSION);
     await userEvent.click(screen.getByRole("link", { name: "Teach" }));
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Teach" }),
+      screen.getByRole("heading", { level: 1, name: "Assignments" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/DEV placeholder/i)).toBeInTheDocument();
+    expect(screen.queryByText(/DEV placeholder/i)).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("No assignments yet"),
+    ).toBeInTheDocument();
   });
 });

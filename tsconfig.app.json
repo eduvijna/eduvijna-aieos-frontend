@@ -25,5 +25,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/features/teacher-os/teach/assignment.contract.test.ts"]
 }

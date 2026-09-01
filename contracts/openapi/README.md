@@ -10,17 +10,30 @@ This directory holds a **consumer snapshot** of the AIEOS HTTP contract for fron
 - The file `aieos-v1.consumer-snapshot.json` in this frontend repo is **NON-AUTHORITATIVE**.
   It must not be treated as the source of truth for API behaviour.
 
-## Snapshot provenance (TOS-DEV04-I09)
+## Snapshot provenance (TOS-DEV06-I04)
 
 | Field | Value |
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
 | Source path | `contracts/openapi/aieos-v1.json` |
-| Source SHA | `a461e8ac20e556469a9517b54b6dd6d17f48ee90` |
+| Source SHA | `06e05277e73e0c71172cae4904efb37d771c3fad` |
+| Authoritative OpenAPI SHA-256 | `CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
-| Consumer file SHA-256 | `23F122D59EE7605C4E844690F8DFADC376470FCC74F2A5B85E01D75E6244D870` |
+| Consumer file SHA-256 | `CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C` |
 
-Operations consumed by this frontend at this SHA:
+Operations consumed by this frontend at this SHA (Assignment UX additions):
+
+| Operation ID | Method | Path |
+|--------------|--------|------|
+| `teacher_os_school_context_classes_list` | GET | `/api/v1/teacher-os/school-context/classes` |
+| `teaching_assignment_create` | POST | `/api/v1/teaching/assignments` |
+| `teaching_assignment_list` | GET | `/api/v1/teaching/assignments` |
+| `teaching_assignment_get` | GET | `/api/v1/teaching/assignments/{assignment_id}` |
+| `teaching_assignment_due_update` | PATCH | `/api/v1/teaching/assignments/{assignment_id}` |
+| `teaching_assignment_close` | POST | `/api/v1/teaching/assignments/{assignment_id}/actions/close` |
+| `teaching_assignment_cancel` | POST | `/api/v1/teaching/assignments/{assignment_id}/actions/cancel` |
+
+Also retained from prior slices:
 
 | Operation ID | Method | Path |
 |--------------|--------|------|
@@ -38,6 +51,7 @@ Operations consumed by this frontend at this SHA:
 
 | Slice | Source SHA |
 |-------|------------|
+| TOS-DEV06-I04 | `06e05277e73e0c71172cae4904efb37d771c3fad` |
 | TOS-DEV04-I09 | `a461e8ac20e556469a9517b54b6dd6d17f48ee90` |
 | TOS-DEV03R4 Lane A | `3001722e400daca757e22828c8ac843aad6e962f` |
 | TOS-DEV02 Lane A | `f62da1f461957cb443ee422d3a343d15c9ca6640` |
@@ -59,14 +73,14 @@ overrides when the default location or pinned SHA is not current:
 
 ```bash
 AIEOS_BACKEND_ROOT=../eduvijna-aieos-backend \
-AIEOS_BACKEND_OPENAPI_SHA=a461e8ac20e556469a9517b54b6dd6d17f48ee90 \
+AIEOS_BACKEND_OPENAPI_SHA=06e05277e73e0c71172cae4904efb37d771c3fad \
   pnpm sync:openapi
 ```
 
 Verify the consumer file hash after sync:
 
 ```bash
-# Expected: 23F122D59EE7605C4E844690F8DFADC376470FCC74F2A5B85E01D75E6244D870
+# Expected: CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C
 ```
 
 See `scripts/sync-openapi-snapshot.mjs` for how to refresh from a known backend checkout/SHA.

@@ -28,6 +28,8 @@ import {
   publicationStatusLabel,
   resolveContentVersionLifecycle,
 } from "./lifecycle";
+import { canAssignPublishedVersion } from "@/features/teacher-os/teach/learnerAssignable";
+import { AssignToClassPanel } from "@/features/teacher-os/teach/AssignToClassPanel";
 import "./work.css";
 
 /**
@@ -49,6 +51,7 @@ export function ArtifactViewPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const publishInFlightRef = useRef(false);
   const publishKeyRef = useRef<string | null>(null);
 
@@ -164,6 +167,14 @@ export function ArtifactViewPage() {
   const kindLabel = preparationArtifactLabel(
     content?.content_type ?? version?.schema_id,
   );
+  const showAssign =
+    content != null &&
+    version != null &&
+    canAssignPublishedVersion({
+      contentType: content.content_type,
+      publishedVersionId: content.published_version_id,
+      viewedVersionId: version.version_id,
+    });
 
   return (
     <article className="stack work-page">
@@ -283,15 +294,36 @@ export function ArtifactViewPage() {
                   Publish
                 </button>
               ) : null}
+              {showAssign ? (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={assignOpen}
+                  onClick={() => setAssignOpen(true)}
+                >
+                  Assign to class
+                </button>
+              ) : null}
             </div>
             <p className="status-region" role="status" aria-live="assertive">
               {actionMessage}
             </p>
             <p className="muted">
               Publish makes this exact version the published pointer. It does
-              not assign, send, or distribute the artifact to learners.
+              not assign, send, or distribute the artifact to learners. Assign
+              to class creates a TeachingAssignment — not delivery or LMS
+              publish.
             </p>
           </section>
+
+          {assignOpen && content && version ? (
+            <AssignToClassPanel
+              contentId={content.content_id}
+              contentVersionId={version.version_id}
+              sourceWorkId={workId || null}
+              onClose={() => setAssignOpen(false)}
+            />
+          ) : null}
         </>
       ) : null}
     </article>

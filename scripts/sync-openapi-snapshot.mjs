@@ -5,7 +5,7 @@
  * Usage:
  *   node scripts/sync-openapi-snapshot.mjs
  *   AIEOS_BACKEND_ROOT=../eduvijna-aieos-backend node scripts/sync-openapi-snapshot.mjs
- *   AIEOS_BACKEND_OPENAPI_SHA=bcfd5eb0... node scripts/sync-openapi-snapshot.mjs
+ *   AIEOS_BACKEND_OPENAPI_SHA=06e05277... node scripts/sync-openapi-snapshot.mjs
  *
  * Expected source (relative to backend root):
  *   contracts/openapi/aieos-v1.json
@@ -13,10 +13,14 @@
  * Destination (this repo):
  *   contracts/openapi/aieos-v1.consumer-snapshot.json
  *
- * TOS-DEV04-I09 pinned backend OpenAPI source SHA:
+ * TOS-DEV06-I04 pinned backend OpenAPI source SHA:
+ *   06e05277e73e0c71172cae4904efb37d771c3fad
+ * Authoritative Backend OpenAPI SHA-256:
+ *   CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C
+ *
+ * Previous pin (TOS-DEV04-I09):
  *   a461e8ac20e556469a9517b54b6dd6d17f48ee90
- * Consumer OpenAPI SHA-256:
- *   23F122D59EE7605C4E844690F8DFADC376470FCC74F2A5B85E01D75E6244D870
+ *   Consumer OpenAPI SHA-256: 23F122D59EE7605C4E844690F8DFADC376470FCC74F2A5B85E01D75E6244D870
  *
  * This script copies the file only. It does NOT mutate the backend repo.
  * Update contracts/openapi/README.md when changing the pinned SHA.
@@ -29,7 +33,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, "..");
 
-const PINNED_SHA = "a461e8ac20e556469a9517b54b6dd6d17f48ee90";
+const PINNED_SHA = "06e05277e73e0c71172cae4904efb37d771c3fad";
 const backendRoot =
   process.env.AIEOS_BACKEND_ROOT ||
   path.resolve(frontendRoot, "..", "eduvijna-aieos-backend");
