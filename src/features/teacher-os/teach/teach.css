@@ -1,0 +1,85 @@
+.teach-page {
+  max-width: var(--content-max);
+}
+
+.teach-list {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.teach-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.teach-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lifecycle-pill {
+  display: inline-block;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  padding: 0.15rem 0.55rem;
+  border-radius: 0.25rem;
+}
+
+.lifecycle-pill[data-state="ACTIVE"] {
+  color: var(--color-accent);
+}
+
+.lifecycle-pill[data-state="CLOSED"],
+.lifecycle-pill[data-state="CANCELLED"] {
+  opacity: 0.85;
+}
+
+.assign-panel {
+  margin-top: 1rem;
+}
+
+.assign-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.assign-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.assign-field select,
+.assign-field input[type="datetime-local"] {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.3rem;
+  background: transparent;
+  color: inherit;
+  max-width: 24rem;
+}
+
+.confirm-box {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.35rem;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
