@@ -172,9 +172,9 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await expect(
       page.getByRole("heading", { name: "Assignment created" }),
     ).toBeVisible();
-
-    const detailText = await page.locator(".work-meta, .assign-summary").textContent();
-    expect(detailText ?? "").not.toMatch(/sent to students|delivered|notified|LMS/i);
+    await expect(
+      page.getByText(/does not mean learners received it/i),
+    ).toBeVisible();
 
     const listResponse = await page.request.get("/api/v1/teaching/assignments", {
       headers: apiHeaders(),
