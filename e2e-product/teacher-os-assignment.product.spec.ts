@@ -144,10 +144,12 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await expect(
       page.getByRole("heading", { name: "Assign to class" }),
     ).toBeVisible();
-    await expect(page.getByRole("option", { name: "Grade 5A" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Grade 5B" })).toBeVisible();
+    const classSelect = page.getByRole("combobox", { name: "Class" });
+    await expect(classSelect).toBeVisible();
+    await expect(classSelect.locator("option", { hasText: "Grade 5A" })).toHaveCount(1);
+    await expect(classSelect.locator("option", { hasText: "Grade 5B" })).toHaveCount(1);
 
-    await page.getByRole("combobox", { name: "Class" }).selectOption("class-5a");
+    await classSelect.selectOption("class-5a");
     const createRequest = page.waitForRequest(
       (request) =>
         request.method() === "POST" &&

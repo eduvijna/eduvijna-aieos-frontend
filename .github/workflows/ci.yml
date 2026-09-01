@@ -113,7 +113,6 @@ jobs:
         with:
           version: "0.12.4"
           python-version: "3.14"
-          working-directory: backend
 
       - name: Install backend locked dependencies
         working-directory: backend
