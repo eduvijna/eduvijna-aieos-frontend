@@ -80,7 +80,7 @@ async function fetchAssignment(
   }>;
 }
 
-async function publishedVersionCode(page: import("@playwright/test").Page) {
+function publishedVersionCode(page: import("@playwright/test").Page) {
   return page.locator("dt", { hasText: "Published version" }).locator("+ dd code");
 }
 
