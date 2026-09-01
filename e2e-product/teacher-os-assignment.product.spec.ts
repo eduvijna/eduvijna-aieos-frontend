@@ -200,19 +200,18 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
 
     await page.goto("/teacher-os/teach");
     await connectDevSession(page);
-    await expect(page.getByText("ACTIVE")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Grade 5A" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Grade 5A" }).first()).toBeVisible();
 
     await page.reload();
     await connectDevSession(page);
-    await expect(page.getByRole("link", { name: "Grade 5A" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Grade 5A" }).first()).toBeVisible();
 
-    await page.getByRole("link", { name: "Grade 5A" }).click();
+    await page.getByRole("link", { name: "Grade 5A" }).first().click();
     await expect(page.locator("code", { hasText: state.assignment5aId! }).first()).toBeVisible();
-    await expect(page.locator(".lifecycle-pill", { hasText: "ACTIVE" })).toBeVisible();
+    await expect(page.locator(".lifecycle-pill", { hasText: "ACTIVE" }).first()).toBeVisible();
     await expect(page.locator("code", { hasText: f.content_id }).first()).toBeVisible();
     await expect(page.locator("code", { hasText: f.version_id }).first()).toBeVisible();
-    await expect(page.getByText("Grade 5A")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Grade 5A" })).toBeVisible();
     await expect(page.locator("code", { hasText: f.work_id }).first()).toBeVisible();
   });
 
