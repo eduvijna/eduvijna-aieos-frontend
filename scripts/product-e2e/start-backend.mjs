@@ -28,6 +28,7 @@ function resolveRuntimeDatabaseUrl() {
 }
 
 const runtimeDatabaseUrl = resolveRuntimeDatabaseUrl();
+const { VIRTUAL_ENV: _ignoredVirtualEnv, ...baseEnv } = process.env;
 
 const child = spawn(
   process.env.PRODUCT_E2E_UV || "uv",
@@ -35,10 +36,9 @@ const child = spawn(
   {
     cwd: backendRoot,
     env: {
-      ...process.env,
+      ...baseEnv,
       AIEOS_BACKEND_ROOT: backendRoot,
       PRODUCT_E2E_RUNTIME_DATABASE_URL: runtimeDatabaseUrl,
-      VIRTUAL_ENV: undefined,
       PYTHONPATH: [join(backendRoot, "src"), backendRoot].join(
         process.platform === "win32" ? ";" : ":",
       ),
