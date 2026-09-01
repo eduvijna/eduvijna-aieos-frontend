@@ -212,7 +212,10 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await expect(page.locator("code", { hasText: f.content_id }).first()).toBeVisible();
     await expect(page.locator("code", { hasText: f.version_id }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Grade 5A" })).toBeVisible();
-    await expect(page.locator("code", { hasText: f.work_id }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open artifact" })).toBeVisible();
+
+    const assignment = await fetchAssignment(page, state.assignment5aId!);
+    expect(assignment.source_work_id).toBe(f.work_id);
   });
 
   test("Phase D — Independent assignment to Grade 5B", async ({ page }) => {
