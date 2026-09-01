@@ -25,7 +25,7 @@ export default defineConfig({
       command: "node scripts/product-e2e/start-backend.mjs",
       url: `${BACKEND_URL}/docs`,
       reuseExistingServer: !process.env.CI,
-      timeout: 180_000,
+      timeout: 300_000,
       env: {
         ...process.env,
         PRODUCT_E2E_BACKEND_PORT: String(BACKEND_PORT),

@@ -14,7 +14,7 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-const fixture = loadProductFixture();
+let fixture: ReturnType<typeof loadProductFixture>;
 
 const state: {
   assignment5aId: string | null;
@@ -81,6 +81,10 @@ async function fetchAssignment(
 }
 
 test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
+  test.beforeAll(() => {
+    fixture = loadProductFixture();
+  });
+
   test.beforeEach(({ page }) => {
     assertNoApiMocksInstalled(page);
   });
@@ -309,4 +313,4 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
   });
 });
 
-export { state, fixture as productFixture };
+export { state };
