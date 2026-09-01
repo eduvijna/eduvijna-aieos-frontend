@@ -322,10 +322,23 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await page.goto("/teacher-os/teach");
     await connectDevSession(page);
     await expect(page.getByRole("link", { name: "Grade 5B" })).toBeVisible();
+    await expect(
+      page.getByText(/Assigned does not mean delivered, attempted, or graded/i),
+    ).toBeVisible();
     const pageText = await page.locator("body").textContent();
-    expect(pageText ?? "").not.toMatch(
-      /sent to students|delivered to learners|learners notified|LMS published|submission|graded/i,
-    );
+    const forbiddenClaims = [
+      /sent to students/i,
+      /delivered to learners/i,
+      /learners notified/i,
+      /LMS published/i,
+      /learner receipt/i,
+      /roster snapshot/i,
+      /submitted to/i,
+      /has been graded/i,
+    ];
+    for (const pattern of forbiddenClaims) {
+      expect(pageText ?? "").not.toMatch(pattern);
+    }
   });
 });
 
