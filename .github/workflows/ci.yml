@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "tos-dev01-*", "tos-dev02-*"]
+    branches: [main, "tos-dev01-*", "tos-dev02-*", "tos-dev06-*"]
   pull_request:
 
 concurrency:
@@ -59,4 +59,93 @@ jobs:
           path: |
             playwright-report/
             test-results/
+          retention-days: 7
+
+  product-e2e:
+    name: product-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AIEOS_BACKEND_ROOT: ${{ github.workspace }}/backend
+      AIEOS_BACKEND_PIN_SHA: 06e05277e73e0c71172cae4904efb37d771c3fad
+      AIEOS_TEST_BOOTSTRAP_DATABASE_URL: postgresql+psycopg://aieos_bootstrap:aieos_test@127.0.0.1:5432/aieos
+      AIEOS_TEST_DATABASE_URL: postgresql+psycopg://aieos_migrator:aieos_test@127.0.0.1:5432/aieos
+      AIEOS_TEST_RUNTIME_DATABASE_URL: postgresql+psycopg://aieos_runtime:aieos_test@127.0.0.1:5432/aieos
+      PRODUCT_E2E_BACKEND_PORT: "8000"
+      PLAYWRIGHT_PORT: "5181"
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: aieos_bootstrap
+          POSTGRES_PASSWORD: aieos_test
+          POSTGRES_DB: aieos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aieos_bootstrap -d aieos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      - name: Checkout backend at pin SHA
+        uses: actions/checkout@v4
+        with:
+          repository: eduvijna/eduvijna-aieos-backend
+          ref: 06e05277e73e0c71172cae4904efb37d771c3fad
+          path: backend
+
+      - name: Verify backend pin SHA
+        run: |
+          cd backend
+          HEAD="$(git rev-parse HEAD)"
+          if [ "$HEAD" != "$AIEOS_BACKEND_PIN_SHA" ]; then
+            echo "Backend HEAD $HEAD != pin $AIEOS_BACKEND_PIN_SHA"
+            exit 1
+          fi
+
+      - name: Setup uv (backend)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.4"
+          python-version: "3.14"
+
+      - name: Install backend locked dependencies
+        working-directory: backend
+        run: uv sync --locked --group dev
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install frontend dependencies (frozen)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Product E2E (real stack)
+        run: pnpm test:e2e:product
+
+      - name: Upload product Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-product-report
+          path: |
+            playwright-product-report/
+            test-results/
+            tmp/product-e2e-fixture.json
+            tmp/product-e2e-db.json
           retention-days: 7
