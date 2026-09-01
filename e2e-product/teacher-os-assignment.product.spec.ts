@@ -80,6 +80,10 @@ async function fetchAssignment(
   }>;
 }
 
+async function publishedVersionCode(page: import("@playwright/test").Page) {
+  return page.locator("dt", { hasText: "Published version" }).locator("+ dd code");
+}
+
 test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
   test.beforeAll(() => {
     fixture = loadProductFixture();
@@ -98,18 +102,26 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await page.goto(artifactPath(f));
     await connectDevSession(page);
 
+    const contentBefore = await fetchContent(page);
+    if (contentBefore.published_version_id === f.version_id) {
+      await expect(publishedVersionCode(page)).toHaveText(f.version_id);
+      await expect(page.getByRole("button", { name: "Assign to class" })).toBeVisible();
+      state.publishedVersionId = contentBefore.published_version_id;
+      return;
+    }
+
     await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Assign to class" }),
     ).toHaveCount(0);
-    await expect(page.locator("code", { hasText: "none" })).toBeVisible();
+    await expect(publishedVersionCode(page)).toHaveText("none");
 
     await page.getByRole("button", { name: "Publish" }).click();
     await expect(
       page.getByText(/Published\. This version is now the published pointer/i),
     ).toBeVisible();
 
-    await expect(page.locator("code", { hasText: f.version_id })).toBeVisible();
+    await expect(publishedVersionCode(page)).toHaveText(f.version_id);
     await expect(page.getByRole("button", { name: "Assign to class" })).toBeVisible();
 
     const content = await fetchContent(page);
@@ -194,12 +206,12 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await expect(page.getByRole("link", { name: "Grade 5A" })).toBeVisible();
 
     await page.getByRole("link", { name: "Grade 5A" }).click();
-    await expect(page.locator("code", { hasText: state.assignment5aId! })).toBeVisible();
+    await expect(page.locator("code", { hasText: state.assignment5aId! }).first()).toBeVisible();
     await expect(page.locator(".lifecycle-pill", { hasText: "ACTIVE" })).toBeVisible();
-    await expect(page.locator("code", { hasText: f.content_id })).toBeVisible();
-    await expect(page.locator("code", { hasText: f.version_id })).toBeVisible();
+    await expect(page.locator("code", { hasText: f.content_id }).first()).toBeVisible();
+    await expect(page.locator("code", { hasText: f.version_id }).first()).toBeVisible();
     await expect(page.getByText("Grade 5A")).toBeVisible();
-    await expect(page.locator("code", { hasText: f.work_id })).toBeVisible();
+    await expect(page.locator("code", { hasText: f.work_id }).first()).toBeVisible();
   });
 
   test("Phase D — Independent assignment to Grade 5B", async ({ page }) => {
