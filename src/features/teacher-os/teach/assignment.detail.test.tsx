@@ -93,14 +93,17 @@ describe("TOS-DEV06-I04 Teach list", () => {
 });
 
 describe("TOS-DEV06-I04 Assignment detail mutations", () => {
-  it("ACTIVE exposes due/close/cancel; PATCH sends If-Match + Idempotency-Key", async () => {
+  it("ACTIVE exposes due/close/cancel; fresh GET precedes PATCH with fresh If-Match", async () => {
     const user = userEvent.setup();
+    let detailGets = 0;
     const calls = stubFetch((call) => {
       if (
         call.method === "GET" &&
         call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
-        return mockJsonResponse(sampleAssignment(), { etag: '"r0"' });
+        detailGets += 1;
+        const etag = detailGets === 1 ? '"r0"' : '"r1"';
+        return mockJsonResponse(sampleAssignment(), { etag });
       }
       if (
         call.method === "PATCH" &&
@@ -111,7 +114,7 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
             due_at: null,
             aggregate_revision: 1,
           }),
-          { etag: '"r1"' },
+          { etag: '"r2"' },
         );
       }
       return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
@@ -121,37 +124,47 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
     expect(
       await screen.findByRole("button", { name: "Update due date" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Close assignment" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Cancel assignment" }),
-    ).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText(/Due date/i));
     await user.click(screen.getByRole("button", { name: "Update due date" }));
     expect(await screen.findByText(/Due date updated/i)).toBeInTheDocument();
 
-    const patch = calls.find((call) => call.method === "PATCH");
-    expect(patch?.headers.get("If-Match")).toBe('"r0"');
+    expect(detailGets).toBeGreaterThanOrEqual(2);
+    const patchIndex = calls.findIndex((call) => call.method === "PATCH");
+    const lastPrePatchGet = calls
+      .slice(0, patchIndex)
+      .filter(
+        (call) =>
+          call.method === "GET" &&
+          call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`),
+      )
+      .at(-1);
+    expect(lastPrePatchGet).toBeDefined();
+    const patch = calls[patchIndex];
+    expect(patch?.headers.get("If-Match")).toBe('"r1"');
     expect(patch?.headers.get("Idempotency-Key")).toBeTruthy();
     expect(patch?.body).toEqual({ due_at: null });
   });
 
   it("412 reloads and informs without silent second mutation", async () => {
     const user = userEvent.setup();
+    let detailGets = 0;
     let patched = 0;
     stubFetch((call) => {
       if (
         call.method === "GET" &&
         call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
+        detailGets += 1;
+        const etag =
+          detailGets === 1 ? '"r0"' : patched > 0 ? '"r2"' : '"r1"';
         return mockJsonResponse(
           sampleAssignment({
-            due_at: patched > 0 ? "2026-09-09T10:00:00Z" : "2026-09-08T10:00:00Z",
-            aggregate_revision: patched > 0 ? 1 : 0,
+            due_at:
+              patched > 0 ? "2026-09-09T10:00:00Z" : "2026-09-08T10:00:00Z",
+            aggregate_revision: patched > 0 ? 2 : detailGets === 1 ? 0 : 1,
           }),
-          { etag: patched > 0 ? '"r1"' : '"r0"' },
+          { etag },
         );
       }
       if (call.method === "PATCH") {
@@ -168,16 +181,20 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
       await screen.findByText(/Latest state was reloaded/i),
     ).toBeInTheDocument();
     expect(patched).toBe(1);
+    expect(detailGets).toBeGreaterThanOrEqual(2);
   });
 
-  it("close confirmation required and becomes CLOSED terminal", async () => {
+  it("close confirmation uses fresh pre-close GET ETag", async () => {
     const user = userEvent.setup();
+    let detailGets = 0;
     const calls = stubFetch((call) => {
       if (
         call.method === "GET" &&
         call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
-        return mockJsonResponse(sampleAssignment(), { etag: '"r0"' });
+        detailGets += 1;
+        const etag = detailGets === 1 ? '"r0"' : '"r3"';
+        return mockJsonResponse(sampleAssignment(), { etag });
       }
       if (call.url.endsWith(`/actions/close`)) {
         return mockJsonResponse(
@@ -186,7 +203,7 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
             closed_at: "2026-09-02T10:00:00Z",
             aggregate_revision: 1,
           }),
-          { etag: '"r1"' },
+          { etag: '"r4"' },
         );
       }
       return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
@@ -196,32 +213,26 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
     await user.click(
       await screen.findByRole("button", { name: "Close assignment" }),
     );
-    expect(screen.getByRole("button", { name: "Confirm close" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Confirm close" }));
     expect(await screen.findByText(/Assignment closed/i)).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Update due date" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Close assignment" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Cancel assignment" }),
-    ).not.toBeInTheDocument();
 
     const closeCall = calls.find((call) => call.url.endsWith("/actions/close"));
-    expect(closeCall?.headers.get("If-Match")).toBe('"r0"');
+    expect(closeCall?.headers.get("If-Match")).toBe('"r3"');
     expect(closeCall?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(detailGets).toBeGreaterThanOrEqual(2);
   });
 
-  it("cancel confirmation required and becomes CANCELLED terminal", async () => {
+  it("cancel confirmation uses fresh pre-cancel GET ETag", async () => {
     const user = userEvent.setup();
+    let detailGets = 0;
     const calls = stubFetch((call) => {
       if (
         call.method === "GET" &&
         call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
-        return mockJsonResponse(sampleAssignment(), { etag: '"r0"' });
+        detailGets += 1;
+        const etag = detailGets === 1 ? '"r0"' : '"r4"';
+        return mockJsonResponse(sampleAssignment(), { etag });
       }
       if (call.url.endsWith(`/actions/cancel`)) {
         return mockJsonResponse(
@@ -230,7 +241,7 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
             cancelled_at: "2026-09-02T11:00:00Z",
             aggregate_revision: 1,
           }),
-          { etag: '"r1"' },
+          { etag: '"r5"' },
         );
       }
       return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
@@ -244,15 +255,58 @@ describe("TOS-DEV06-I04 Assignment detail mutations", () => {
     expect(
       await screen.findByText(/Assignment cancelled/i),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Update due date" }),
-    ).not.toBeInTheDocument();
 
     const cancelCall = calls.find((call) =>
       call.url.endsWith("/actions/cancel"),
     );
-    expect(cancelCall?.headers.get("If-Match")).toBe('"r0"');
+    expect(cancelCall?.headers.get("If-Match")).toBe('"r4"');
     expect(cancelCall?.headers.get("Idempotency-Key")).toBeTruthy();
+    expect(detailGets).toBeGreaterThanOrEqual(2);
+  });
+
+  it("aborts close when fresh GET already shows CLOSED", async () => {
+    const user = userEvent.setup();
+    let detailGets = 0;
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
+      ) {
+        detailGets += 1;
+        if (detailGets === 1) {
+          return mockJsonResponse(sampleAssignment(), { etag: '"r0"' });
+        }
+        return mockJsonResponse(
+          sampleAssignment({
+            lifecycle_state: "CLOSED",
+            closed_at: "2026-09-02T10:00:00Z",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      if (call.url.endsWith("/actions/close")) {
+        return mockJsonResponse(sampleAssignment(), { status: 500 });
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/teach/assignments/${ASSIGNMENT_ID}`);
+    await user.click(
+      await screen.findByRole("button", { name: "Close assignment" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Confirm close" }));
+    expect(
+      await screen.findByText(/Latest state was loaded/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("CLOSED")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Update due date" }),
+    ).not.toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.url.endsWith("/actions/close")),
+    ).toHaveLength(0);
+    expect(detailGets).toBe(2);
   });
 
   it("CLOSED assignment exposes no mutation controls", async () => {

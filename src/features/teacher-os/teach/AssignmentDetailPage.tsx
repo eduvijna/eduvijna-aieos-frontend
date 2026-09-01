@@ -17,11 +17,18 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import {
+  fetchFreshAssignmentForMutation,
+  MissingAssignmentEtagError,
+} from "./assignmentMutationPreconditions";
+import {
   artifactLinkForAssignment,
   formatAssignmentInstant,
   isActiveAssignment,
 } from "./assignmentPresentation";
 import "./teach.css";
+
+const TERMINAL_STATE_NOTICE =
+  "Latest state was loaded. This Assignment is no longer active.";
 
 function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -48,7 +55,6 @@ export function AssignmentDetailPage() {
   const { isConnected, isProduction } = useSession();
   const [assignment, setAssignment] =
     useState<TeachingAssignmentResponse | null>(null);
-  const [etag, setEtag] = useState<string | null>(null);
   const [status, setStatus] = useState<
     "loading" | "ready" | "error" | "unavailable"
   >("loading");
@@ -77,7 +83,6 @@ export function AssignmentDetailPage() {
       try {
         const response = await getTeachingAssignment(assignmentId);
         setAssignment(response.data);
-        setEtag(response.etag);
         setDueDraft(toDatetimeLocalValue(response.data.due_at));
         setStatus("ready");
         if (options?.notice) {
@@ -95,13 +100,39 @@ export function AssignmentDetailPage() {
     void load();
   }, [load]);
 
-  async function ensureFreshEtag(): Promise<string | null> {
-    if (etag) return etag;
-    const response = await getTeachingAssignment(assignmentId);
-    setAssignment(response.data);
-    setEtag(response.etag);
-    setDueDraft(toDatetimeLocalValue(response.data.due_at));
-    return response.etag;
+  function applyFreshAssignmentState(
+    fresh: Awaited<ReturnType<typeof fetchFreshAssignmentForMutation>>,
+    options?: { preserveDueDraft?: boolean },
+  ) {
+    setAssignment(fresh.assignment);
+    if (!options?.preserveDueDraft) {
+      setDueDraft(toDatetimeLocalValue(fresh.assignment.due_at));
+    }
+  }
+
+  async function prepareActiveMutation(options?: {
+    preserveDueDraft?: boolean;
+  }): Promise<Awaited<ReturnType<typeof fetchFreshAssignmentForMutation>> | null> {
+    try {
+      const fresh = await fetchFreshAssignmentForMutation(assignmentId);
+      applyFreshAssignmentState(fresh, options);
+      if (!isActiveAssignment(fresh.assignment)) {
+        setConfirmClose(false);
+        setConfirmCancel(false);
+        setActionMessage(TERMINAL_STATE_NOTICE);
+        return null;
+      }
+      return fresh;
+    } catch (error) {
+      if (error instanceof MissingAssignmentEtagError) {
+        setActionMessage(
+          "Missing ETag from Assignment GET (client contract error).",
+        );
+        return null;
+      }
+      setActionMessage(userMessageForApiError(error));
+      return null;
+    }
   }
 
   async function onUpdateDue() {
@@ -122,24 +153,19 @@ export function AssignmentDetailPage() {
     setBusy(true);
     setActionMessage("Updating due date…");
     try {
-      const currentEtag = await ensureFreshEtag();
-      if (!currentEtag) {
-        setActionMessage(
-          "Missing ETag from Assignment GET (client contract error). Reloaded.",
-        );
-        await load({ silent: true });
+      const fresh = await prepareActiveMutation({ preserveDueDraft: true });
+      if (!fresh) {
         return;
       }
       const response = await updateTeachingAssignmentDue(
-        assignment.assignment_id,
+        fresh.assignment.assignment_id,
         { due_at: dueIso },
-        currentEtag,
+        fresh.etag,
         dueKeyRef.current,
       );
       dueKeyRef.current = null;
       dueMaterialRef.current = null;
       setAssignment(response.data);
-      setEtag(response.etag);
       setDueDraft(toDatetimeLocalValue(response.data.due_at));
       setActionMessage("Due date updated.");
     } catch (error) {
@@ -189,23 +215,18 @@ export function AssignmentDetailPage() {
     setBusy(true);
     setActionMessage("Closing assignment…");
     try {
-      const currentEtag = await ensureFreshEtag();
-      if (!currentEtag) {
-        setActionMessage(
-          "Missing ETag from Assignment GET (client contract error). Reloaded.",
-        );
-        await load({ silent: true });
+      const fresh = await prepareActiveMutation();
+      if (!fresh) {
         return;
       }
       const response = await closeTeachingAssignment(
-        assignment.assignment_id,
-        currentEtag,
+        fresh.assignment.assignment_id,
+        fresh.etag,
         closeKeyRef.current,
       );
       closeKeyRef.current = null;
       setConfirmClose(false);
       setAssignment(response.data);
-      setEtag(response.etag);
       setActionMessage("Assignment closed.");
     } catch (error) {
       if (error instanceof ApiError && error.code === "precondition_failed") {
@@ -235,23 +256,18 @@ export function AssignmentDetailPage() {
     setBusy(true);
     setActionMessage("Cancelling assignment…");
     try {
-      const currentEtag = await ensureFreshEtag();
-      if (!currentEtag) {
-        setActionMessage(
-          "Missing ETag from Assignment GET (client contract error). Reloaded.",
-        );
-        await load({ silent: true });
+      const fresh = await prepareActiveMutation();
+      if (!fresh) {
         return;
       }
       const response = await cancelTeachingAssignment(
-        assignment.assignment_id,
-        currentEtag,
+        fresh.assignment.assignment_id,
+        fresh.etag,
         cancelKeyRef.current,
       );
       cancelKeyRef.current = null;
       setConfirmCancel(false);
       setAssignment(response.data);
-      setEtag(response.etag);
       setActionMessage("Assignment cancelled.");
     } catch (error) {
       if (error instanceof ApiError && error.code === "precondition_failed") {

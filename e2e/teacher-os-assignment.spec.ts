@@ -237,7 +237,7 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
 
   test("E2E C — Teach lifecycle due update then close", async ({ page }) => {
     let assignment = assignmentBody();
-    let etag = '"r0"';
+    let detailGets = 0;
     const patches: Array<{ headers: Record<string, string>; body: unknown }> = [];
     const closes: Array<Record<string, string>> = [];
 
@@ -258,6 +258,13 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
         method === "GET" &&
         url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
+        detailGets += 1;
+        let etag = '"r0"';
+        if (patches.length > 0 && closes.length === 0) {
+          etag = '"r3"';
+        } else if (detailGets > 1 && patches.length === 0) {
+          etag = '"r1"';
+        }
         await route.fulfill({
           status: 200,
           headers: { ETag: etag, "Content-Type": "application/json" },
@@ -280,10 +287,9 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
           due_at: null,
           aggregate_revision: 1,
         });
-        etag = '"r1"';
         await route.fulfill({
           status: 200,
-          headers: { ETag: etag, "Content-Type": "application/json" },
+          headers: { ETag: '"r2"', "Content-Type": "application/json" },
           body: JSON.stringify(assignment),
         });
         return;
@@ -298,10 +304,9 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
           closed_at: "2026-09-02T10:00:00Z",
           aggregate_revision: 2,
         });
-        etag = '"r2"';
         await route.fulfill({
           status: 200,
-          headers: { ETag: etag, "Content-Type": "application/json" },
+          headers: { ETag: '"r4"', "Content-Type": "application/json" },
           body: JSON.stringify(assignment),
         });
         return;
@@ -322,9 +327,10 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
     await page.getByRole("button", { name: "Update due date" }).click();
     await expect(page.getByText(/Due date updated/i)).toBeVisible();
     expect(patches).toHaveLength(1);
-    expect(patches[0]?.headers["If-Match"]).toBe('"r0"');
+    expect(patches[0]?.headers["If-Match"]).toBe('"r1"');
     expect(patches[0]?.headers["Idempotency-Key"]).toBeTruthy();
     expect(assignment.lifecycle_state).toBe("ACTIVE");
+    expect(detailGets).toBeGreaterThanOrEqual(2);
 
     await page.getByRole("button", { name: "Close assignment" }).click();
     await page.getByRole("button", { name: "Confirm close" }).click();
@@ -332,11 +338,14 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
     await expect(page.locator(".lifecycle-pill", { hasText: "CLOSED" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Update due date" })).toHaveCount(0);
     expect(closes).toHaveLength(1);
+    expect(closes[0]?.["If-Match"]).toBe('"r3"');
+    expect(detailGets).toBeGreaterThanOrEqual(3);
   });
 
   test("E2E D — cancel branch", async ({ page }) => {
     let assignment = assignmentBody();
-    let etag = '"r0"';
+    let detailGets = 0;
+    const cancels: Array<Record<string, string>> = [];
 
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -346,6 +355,8 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
         method === "GET" &&
         url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
+        detailGets += 1;
+        const etag = detailGets === 1 ? '"r0"' : '"r4"';
         await route.fulfill({
           status: 200,
           headers: { ETag: etag, "Content-Type": "application/json" },
@@ -354,15 +365,18 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
         return;
       }
       if (method === "POST" && url.endsWith("/actions/cancel")) {
+        cancels.push({
+          "If-Match": request.headers()["if-match"] ?? "",
+          "Idempotency-Key": request.headers()["idempotency-key"] ?? "",
+        });
         assignment = assignmentBody({
           lifecycle_state: "CANCELLED",
           cancelled_at: "2026-09-02T11:00:00Z",
           aggregate_revision: 1,
         });
-        etag = '"r1"';
         await route.fulfill({
           status: 200,
-          headers: { ETag: etag, "Content-Type": "application/json" },
+          headers: { ETag: '"r5"', "Content-Type": "application/json" },
           body: JSON.stringify(assignment),
         });
         return;
@@ -383,11 +397,14 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
       page.locator(".lifecycle-pill", { hasText: "CANCELLED" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Close assignment" })).toHaveCount(0);
+    expect(cancels).toHaveLength(1);
+    expect(cancels[0]?.["If-Match"]).toBe('"r4"');
+    expect(detailGets).toBeGreaterThanOrEqual(2);
   });
 
   test("E2E E — 412 concurrency refresh", async ({ page }) => {
-    let assignment = assignmentBody();
-    let etag = '"r0"';
+    const assignment = assignmentBody();
+    let detailGets = 0;
     let patches = 0;
 
     await page.route("**/api/v1/**", async (route) => {
@@ -398,20 +415,25 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
         method === "GET" &&
         url.endsWith(`/api/v1/teaching/assignments/${ASSIGNMENT_ID}`)
       ) {
+        detailGets += 1;
+        const etag =
+          detailGets === 1 ? '"r0"' : patches > 0 ? '"r2"' : '"r1"';
         await route.fulfill({
           status: 200,
           headers: { ETag: etag, "Content-Type": "application/json" },
-          body: JSON.stringify(assignment),
+          body: JSON.stringify(
+            patches > 0
+              ? assignmentBody({
+                  due_at: "2026-09-09T12:00:00Z",
+                  aggregate_revision: 2,
+                })
+              : assignment,
+          ),
         });
         return;
       }
       if (method === "PATCH") {
         patches += 1;
-        assignment = assignmentBody({
-          due_at: "2026-09-09T12:00:00Z",
-          aggregate_revision: 1,
-        });
-        etag = '"r1"';
         await route.fulfill({
           status: 412,
           contentType: "application/json",
@@ -436,5 +458,6 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
     await page.getByRole("button", { name: "Update due date" }).click();
     await expect(page.getByText(/Latest state was reloaded/i)).toBeVisible();
     expect(patches).toBe(1);
+    expect(detailGets).toBeGreaterThanOrEqual(2);
   });
 });
