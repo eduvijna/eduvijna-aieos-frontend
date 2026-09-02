@@ -36,7 +36,7 @@ import type {
 } from "@/services/api/contentApi";
 
 export const DEV_SESSION: DevSession = {
-  apiOrigin: "http://127.0.0.1:8000",
+  apiOrigin: "http://127.0.0.1:8080",
   tenantId: "tenant-dev-1",
   bearerToken: "test-token-not-for-storage",
 };

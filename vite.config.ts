@@ -7,8 +7,10 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  // Ordinary local F5 Backend default. Product E2E overrides via
+  // VITE_DEV_API_PROXY_TARGET (isolated port 8000).
   const proxyTarget =
-    env.VITE_DEV_API_PROXY_TARGET || "http://127.0.0.1:8000";
+    env.VITE_DEV_API_PROXY_TARGET || "http://127.0.0.1:8080";
 
   return {
     plugins: [react()],

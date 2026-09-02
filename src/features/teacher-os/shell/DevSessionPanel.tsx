@@ -5,7 +5,7 @@ export function DevSessionPanel() {
   const { isProduction, isConnected, connect, disconnect, session } =
     useSession();
   const [apiOrigin, setApiOrigin] = useState(
-    session?.apiOrigin || "http://127.0.0.1:8000",
+    session?.apiOrigin || "http://127.0.0.1:8080",
   );
   const [tenantId, setTenantId] = useState(session?.tenantId || "");
   const [bearerToken, setBearerToken] = useState(session?.bearerToken || "");
