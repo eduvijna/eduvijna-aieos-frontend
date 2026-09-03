@@ -246,6 +246,31 @@ test.describe("TOS-DEV06-I04 Assignment UX", () => {
       const url = request.url();
       const method = request.method();
 
+      // Teach workspace boots works + school-context classes alongside assignments.
+      if (
+        method === "GET" &&
+        /\/api\/v1\/teaching\/works(\?|$)/.test(url)
+      ) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ items: [], has_more: false }),
+        });
+        return;
+      }
+      if (url.includes("/teacher-os/school-context/classes")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            items: [
+              { class_ref: "class-5a", display_label: "Grade 5A" },
+              { class_ref: "class-5b", display_label: "Grade 5B" },
+            ],
+          }),
+        });
+        return;
+      }
       if (method === "GET" && url.endsWith("/api/v1/teaching/assignments")) {
         await route.fulfill({
           status: 200,

@@ -27,6 +27,7 @@ import { WorkPage } from "@/features/teacher-os/work/WorkPage";
 import { ArtifactViewPage } from "@/features/teacher-os/work/ArtifactViewPage";
 import { TeachPage } from "@/features/teacher-os/teach/TeachPage";
 import { AssignmentDetailPage } from "@/features/teacher-os/teach/AssignmentDetailPage";
+import { ExecutionDetailPage } from "@/features/teacher-os/teach/ExecutionDetailPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
 import type {
@@ -99,6 +100,10 @@ export function renderApp(
             <Route
               path="teach/assignments/:assignmentId"
               element={<AssignmentDetailPage />}
+            />
+            <Route
+              path="teach/executions/:executionId"
+              element={<ExecutionDetailPage />}
             />
             <Route
               path="assess"

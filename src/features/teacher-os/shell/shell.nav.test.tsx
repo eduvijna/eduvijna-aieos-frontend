@@ -55,8 +55,14 @@ describe("A. Shell nav + Mission-first landing", () => {
     expect(screen.queryByText(/Not implemented/i)).not.toBeInTheDocument();
   });
 
-  it("navigates to the real Teach Assignments surface instead of a placeholder", async () => {
+  it("navigates to the real Teach workspace instead of a placeholder", async () => {
     stubFetch((call) => {
+      if (call.url.startsWith("/api/v1/teaching/works")) {
+        return mockJsonResponse({ items: [], has_more: false });
+      }
+      if (call.url.includes("/teacher-os/school-context/classes")) {
+        return mockJsonResponse({ items: [] });
+      }
       if (call.url.includes("/teaching/assignments")) {
         return mockJsonResponse({ items: [], has_more: false });
       }
@@ -67,7 +73,10 @@ describe("A. Shell nav + Mission-first landing", () => {
     await userEvent.click(screen.getByRole("link", { name: "Teach" }));
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Assignments" }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Teaching workspace",
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/DEV placeholder/i)).not.toBeInTheDocument();
     expect(
