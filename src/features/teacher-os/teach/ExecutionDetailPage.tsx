@@ -19,6 +19,13 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import {
+  clearIdempotencyAssociation,
+  executionLifecycleMaterial,
+  observationCorrectMaterial,
+  observationCreateMaterial,
+  retainOrMintIdempotencyKey,
+} from "./executionIdempotency";
+import {
   fetchFreshExecutionForMutation,
   MissingExecutionEtagError,
 } from "./executionMutationPreconditions";
@@ -73,7 +80,9 @@ export function ExecutionDetailPage() {
   const correctKeyRef = useRef<string | null>(null);
   const correctMaterialRef = useRef<string | null>(null);
   const completeKeyRef = useRef<string | null>(null);
+  const completeMaterialRef = useRef<string | null>(null);
   const cancelKeyRef = useRef<string | null>(null);
+  const cancelMaterialRef = useRef<string | null>(null);
 
   const load = useCallback(
     async (options?: { silent?: boolean; notice?: string }) => {
@@ -147,19 +156,31 @@ export function ExecutionDetailPage() {
 
   async function handleMutationError(
     error: unknown,
-    options?: { resetConfirm?: boolean },
+    options?: {
+      resetConfirm?: boolean;
+      invalidate?: "create" | "correct" | "complete" | "cancel";
+    },
   ) {
     if (options?.resetConfirm) {
       setConfirmComplete(false);
       setConfirmCancel(false);
     }
     const problemCode = problemCodeFromApiError(error);
-    if (
+    const isRevisionConflict =
       error instanceof ApiError &&
       (error.code === "precondition_failed" ||
         problemCode === "resource_revision_conflict" ||
-        problemCode === "teaching_execution_observation_revision_conflict")
-    ) {
+        problemCode === "teaching_execution_observation_revision_conflict");
+    if (isRevisionConflict) {
+      if (options?.invalidate === "create") {
+        clearIdempotencyAssociation(createKeyRef, createMaterialRef);
+      } else if (options?.invalidate === "correct") {
+        clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
+      } else if (options?.invalidate === "complete") {
+        clearIdempotencyAssociation(completeKeyRef, completeMaterialRef);
+      } else if (options?.invalidate === "cancel") {
+        clearIdempotencyAssociation(cancelKeyRef, cancelMaterialRef);
+      }
       await load({
         silent: true,
         notice:
@@ -216,35 +237,32 @@ export function ExecutionDetailPage() {
       return;
     }
 
-    const material = JSON.stringify({
-      observation_kind: observationKind,
-      body,
-    });
-    if (createMaterialRef.current !== material) {
-      createKeyRef.current = null;
-      createMaterialRef.current = material;
-    }
-    if (!createKeyRef.current) {
-      createKeyRef.current = crypto.randomUUID();
-    }
-
     mutationInFlightRef.current = true;
     setBusy(true);
     setActionMessage("Recording observation…");
     try {
       const fresh = await prepareInProgressMutation();
       if (!fresh) return;
+      const material = observationCreateMaterial({
+        executionId: fresh.execution.execution_id,
+        observationKind,
+        body,
+      });
+      const idempotencyKey = retainOrMintIdempotencyKey(
+        material,
+        createKeyRef,
+        createMaterialRef,
+      );
       await createTeachingExecutionObservation(
         fresh.execution.execution_id,
         { observation_kind: observationKind, body },
-        createKeyRef.current,
+        idempotencyKey,
       );
-      createKeyRef.current = null;
-      createMaterialRef.current = null;
+      clearIdempotencyAssociation(createKeyRef, createMaterialRef);
       setObservationBody("");
       await load({ silent: true, notice: "Observation recorded." });
     } catch (error) {
-      await handleMutationError(error);
+      await handleMutationError(error, { invalidate: "create" });
     } finally {
       mutationInFlightRef.current = false;
       setBusy(false);
@@ -260,15 +278,6 @@ export function ExecutionDetailPage() {
       return;
     }
 
-    const material = JSON.stringify({ observation_id: observationId, body });
-    if (correctMaterialRef.current !== material) {
-      correctKeyRef.current = null;
-      correctMaterialRef.current = material;
-    }
-    if (!correctKeyRef.current) {
-      correctKeyRef.current = crypto.randomUUID();
-    }
-
     mutationInFlightRef.current = true;
     setBusy(true);
     setActionMessage("Correcting observation…");
@@ -279,26 +288,37 @@ export function ExecutionDetailPage() {
         (item) => item.observation_id === observationId,
       );
       if (!observation) {
+        clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
         setActionMessage(
           "Observation was not found on the latest Execution. Latest state was reloaded.",
         );
         setCorrectingId(null);
         return;
       }
+      const material = observationCorrectMaterial({
+        executionId: fresh.execution.execution_id,
+        observationId,
+        expectedRevision: observation.revision,
+        body,
+      });
+      const idempotencyKey = retainOrMintIdempotencyKey(
+        material,
+        correctKeyRef,
+        correctMaterialRef,
+      );
       await correctTeachingExecutionObservation(
         fresh.execution.execution_id,
         observationId,
         { body },
         observationRevisionEtag(observation),
-        correctKeyRef.current,
+        idempotencyKey,
       );
-      correctKeyRef.current = null;
-      correctMaterialRef.current = null;
+      clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
       setCorrectingId(null);
       setCorrectDraft("");
       await load({ silent: true, notice: "Observation corrected." });
     } catch (error) {
-      await handleMutationError(error);
+      await handleMutationError(error, { invalidate: "correct" });
     } finally {
       mutationInFlightRef.current = false;
       setBusy(false);
@@ -308,9 +328,6 @@ export function ExecutionDetailPage() {
   async function onComplete() {
     if (!execution || mutationInFlightRef.current) return;
     if (!isExecutionInProgress(execution)) return;
-    if (!completeKeyRef.current) {
-      completeKeyRef.current = crypto.randomUUID();
-    }
 
     mutationInFlightRef.current = true;
     setBusy(true);
@@ -318,19 +335,32 @@ export function ExecutionDetailPage() {
     try {
       const fresh = await prepareInProgressMutation();
       if (!fresh) return;
+      const material = executionLifecycleMaterial({
+        executionId: fresh.execution.execution_id,
+        expectedAggregateRevision: fresh.execution.aggregate_revision,
+        action: "complete",
+      });
+      const idempotencyKey = retainOrMintIdempotencyKey(
+        material,
+        completeKeyRef,
+        completeMaterialRef,
+      );
       const response = await completeTeachingExecution(
         fresh.execution.execution_id,
         fresh.etag,
-        completeKeyRef.current,
+        idempotencyKey,
       );
-      completeKeyRef.current = null;
+      clearIdempotencyAssociation(completeKeyRef, completeMaterialRef);
       setConfirmComplete(false);
       setExecution(response.data);
       setActionMessage(
         `Lesson completed. ${ASSIGNMENT_INDEPENDENT_COPY}`,
       );
     } catch (error) {
-      await handleMutationError(error, { resetConfirm: true });
+      await handleMutationError(error, {
+        resetConfirm: true,
+        invalidate: "complete",
+      });
     } finally {
       mutationInFlightRef.current = false;
       setBusy(false);
@@ -340,9 +370,6 @@ export function ExecutionDetailPage() {
   async function onCancel() {
     if (!execution || mutationInFlightRef.current) return;
     if (!isExecutionInProgress(execution)) return;
-    if (!cancelKeyRef.current) {
-      cancelKeyRef.current = crypto.randomUUID();
-    }
 
     mutationInFlightRef.current = true;
     setBusy(true);
@@ -350,19 +377,32 @@ export function ExecutionDetailPage() {
     try {
       const fresh = await prepareInProgressMutation();
       if (!fresh) return;
+      const material = executionLifecycleMaterial({
+        executionId: fresh.execution.execution_id,
+        expectedAggregateRevision: fresh.execution.aggregate_revision,
+        action: "cancel",
+      });
+      const idempotencyKey = retainOrMintIdempotencyKey(
+        material,
+        cancelKeyRef,
+        cancelMaterialRef,
+      );
       const response = await cancelTeachingExecution(
         fresh.execution.execution_id,
         fresh.etag,
-        cancelKeyRef.current,
+        idempotencyKey,
       );
-      cancelKeyRef.current = null;
+      clearIdempotencyAssociation(cancelKeyRef, cancelMaterialRef);
       setConfirmCancel(false);
       setExecution(response.data);
       setActionMessage(
         `Lesson cancelled. ${ASSIGNMENT_INDEPENDENT_COPY}`,
       );
     } catch (error) {
-      await handleMutationError(error, { resetConfirm: true });
+      await handleMutationError(error, {
+        resetConfirm: true,
+        invalidate: "cancel",
+      });
     } finally {
       mutationInFlightRef.current = false;
       setBusy(false);

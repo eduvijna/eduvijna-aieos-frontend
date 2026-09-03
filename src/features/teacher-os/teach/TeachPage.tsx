@@ -28,6 +28,11 @@ import {
   formatAssignmentInstant,
 } from "./assignmentPresentation";
 import {
+  clearIdempotencyAssociation,
+  retainOrMintIdempotencyKey,
+  startExecutionMaterial,
+} from "./executionIdempotency";
+import {
   formatExecutionInstant,
   formatExecutionLifecycleLabel,
   isExecutionInProgress,
@@ -96,18 +101,15 @@ export function TeachPage() {
     [classes, classRef],
   );
 
-  const startMaterialFingerprint = useMemo(() => {
-    const bindings = Object.values(selectedBindings).sort((a, b) =>
-      `${a.content_id}${a.content_version_id}${a.artifact_kind}`.localeCompare(
-        `${b.content_id}${b.content_version_id}${b.artifact_kind}`,
-      ),
-    );
-    return JSON.stringify({
-      work_id: workId,
-      class_ref: classRef,
-      bindings,
-    });
-  }, [workId, classRef, selectedBindings]);
+  const startMaterialFingerprint = useMemo(
+    () =>
+      startExecutionMaterial({
+        workId,
+        classRef,
+        bindings: Object.values(selectedBindings),
+      }),
+    [workId, classRef, selectedBindings],
+  );
 
   const loadBootstrap = useCallback(async () => {
     if (!sessionReady) {
@@ -208,13 +210,11 @@ export function TeachPage() {
   async function onStartLesson() {
     if (!workId || !classRef || startInFlightRef.current) return;
 
-    if (startMaterialRef.current !== startMaterialFingerprint) {
-      startKeyRef.current = null;
-      startMaterialRef.current = startMaterialFingerprint;
-    }
-    if (!startKeyRef.current) {
-      startKeyRef.current = crypto.randomUUID();
-    }
+    const idempotencyKey = retainOrMintIdempotencyKey(
+      startMaterialFingerprint,
+      startKeyRef,
+      startMaterialRef,
+    );
 
     startInFlightRef.current = true;
     setStartBusy(true);
@@ -227,10 +227,9 @@ export function TeachPage() {
           class_ref: classRef,
           bindings,
         },
-        startKeyRef.current,
+        idempotencyKey,
       );
-      startKeyRef.current = null;
-      startMaterialRef.current = null;
+      clearIdempotencyAssociation(startKeyRef, startMaterialRef);
       setActionMessage("Lesson started.");
       navigate(
         `/teacher-os/teach/executions/${response.data.execution_id}`,
@@ -253,7 +252,7 @@ export function TeachPage() {
         setActionMessage(
           `${userMessageForApiError(error)} Change bindings or retry as a new deliberate start.`,
         );
-        startKeyRef.current = null;
+        clearIdempotencyAssociation(startKeyRef, startMaterialRef);
       } else if (
         problemCode === "school_context_unavailable" ||
         (error instanceof ApiError && error.code === "unavailable")

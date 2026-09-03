@@ -323,7 +323,7 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
     await connectDevSession(page);
     await expect(page.getByRole("link", { name: "Grade 5B" })).toBeVisible();
     await expect(
-      page.getByText(/Assigned does not mean delivered, attempted, or graded/i),
+      page.getByText("Assigned ≠ Taught ≠ Assessed ≠ Mastered"),
     ).toBeVisible();
     const pageText = await page.locator("body").textContent();
     const forbiddenClaims = [
