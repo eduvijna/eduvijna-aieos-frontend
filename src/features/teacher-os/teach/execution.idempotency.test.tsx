@@ -476,7 +476,7 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     );
   });
 
-  it("6 — Observation correct with changed revision mints a new key", async () => {
+  it("6 — Observation correct with changed revision aborts retry; new deliberate save mints new key", async () => {
     const user = userEvent.setup();
     let correctAttempts = 0;
     let detailGets = 0;
@@ -490,7 +490,12 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
         const obsRevision = correctAttempts >= 1 ? 1 : 0;
         return mockJsonResponse(
           sampleExecution({
-            observations: [sampleObservation(undefined, obsRevision)],
+            observations: [
+              sampleObservation(
+                { body: obsRevision === 0 ? "First note" : "Server updated" },
+                obsRevision,
+              ),
+            ],
             aggregate_revision: obsRevision,
           }),
           { etag: etagFor(obsRevision) },
@@ -501,9 +506,10 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
         if (correctAttempts === 1) {
           return mockProblemResponse(503, "school_context_unavailable");
         }
-        return mockJsonResponse(sampleObservation({ body: "Corrected" }, 2), {
-          etag: etagFor(2),
-        });
+        return mockJsonResponse(
+          sampleObservation({ body: "Deliberate corrected" }, 2),
+          { etag: etagFor(2) },
+        );
       }
       return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
     });
@@ -518,7 +524,17 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
       await screen.findByText(/temporarily unavailable/i),
     ).toBeInTheDocument();
 
-    // Same body text, but fresh GET now reports observation revision 1.
+    // Recoverable retry with changed revision must NOT PATCH again.
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(
+      await screen.findByText(/observation changed since your last attempt/i),
+    ).toBeInTheDocument();
+    expect(calls.filter((call) => call.method === "PATCH")).toHaveLength(1);
+
+    // New deliberate correction after review.
+    const draft2 = screen.getByLabelText("Corrected observation text");
+    await user.clear(draft2);
+    await user.type(draft2, "Deliberate corrected");
     await user.click(screen.getByRole("button", { name: "Save correction" }));
 
     await waitFor(() => {
@@ -533,7 +549,7 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     expect(detailGets).toBeGreaterThanOrEqual(3);
   });
 
-  it("7 — Observation correct with changed body mints a new key", async () => {
+  it("7 — Observation correct with changed body aborts retry; renewed deliberate save uses new key", async () => {
     const user = userEvent.setup();
     let correctAttempts = 0;
     const calls = stubFetch((call) => {
@@ -575,6 +591,15 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     const draft2 = screen.getByLabelText("Corrected observation text");
     await user.clear(draft2);
     await user.type(draft2, "Second body");
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(
+      await screen.findByText(/observation changed since your last attempt/i),
+    ).toBeInTheDocument();
+    expect(calls.filter((call) => call.method === "PATCH")).toHaveLength(1);
+
+    const draft3 = screen.getByLabelText("Corrected observation text");
+    await user.clear(draft3);
+    await user.type(draft3, "Second body");
     await user.click(screen.getByRole("button", { name: "Save correction" }));
 
     await waitFor(() => {
@@ -720,7 +745,7 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     );
   });
 
-  it("10 — Complete with changed fresh revision mints a new key", async () => {
+  it("10 — Complete with changed fresh revision aborts retry; renewed confirm uses new key", async () => {
     const user = userEvent.setup();
     let completeAttempts = 0;
     const calls = stubFetch((call) => {
@@ -762,6 +787,22 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     expect(
       await screen.findByText(/temporarily unavailable/i),
     ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Complete lesson" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Confirm complete" }),
+    );
+    expect(
+      await screen.findByText(/TeachingExecution changed since your last attempt/i),
+    ).toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.url.endsWith("/actions/complete")),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Confirm complete" }),
+    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Complete lesson" }),
@@ -846,7 +887,7 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     );
   });
 
-  it("12 — Cancel with changed fresh revision mints a new key", async () => {
+  it("12 — Cancel with changed fresh revision aborts retry; renewed confirm uses new key", async () => {
     const user = userEvent.setup();
     let cancelAttempts = 0;
     const calls = stubFetch((call) => {
@@ -886,6 +927,20 @@ describe("TOS-DEV07-I03R1 Execution idempotency (13 cases)", () => {
     expect(
       await screen.findByText(/temporarily unavailable/i),
     ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Cancel lesson" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Confirm cancel" }));
+    expect(
+      await screen.findByText(/TeachingExecution changed since your last attempt/i),
+    ).toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.url.endsWith("/actions/cancel")),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Confirm cancel" }),
+    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Cancel lesson" }),

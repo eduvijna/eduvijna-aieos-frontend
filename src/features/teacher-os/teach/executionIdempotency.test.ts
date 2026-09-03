@@ -5,6 +5,7 @@ import {
   observationCorrectMaterial,
   observationCreateMaterial,
   parseRevisionFromEtag,
+  resolveRevisionSensitiveIdempotencyKey,
   retainOrMintIdempotencyKey,
   startExecutionMaterial,
 } from "./executionIdempotency";
@@ -219,5 +220,85 @@ describe("executionIdempotency helpers", () => {
     clearIdempotencyAssociation(keyRef, materialRef);
     expect(keyRef.current).toBeNull();
     expect(materialRef.current).toBeNull();
+  });
+
+  it("resolveRevisionSensitiveIdempotencyKey reuses key for identical material", () => {
+    const keyRef = { current: null as string | null };
+    const materialRef = { current: null as string | null };
+    let minted = 0;
+    const mint = () => {
+      minted += 1;
+      return `key-${minted}`;
+    };
+    const material = observationCorrectMaterial({
+      executionId: "exec-a",
+      observationId: "obs-1",
+      expectedRevision: 0,
+      body: "same",
+    });
+    const first = resolveRevisionSensitiveIdempotencyKey(
+      material,
+      keyRef,
+      materialRef,
+      mint,
+    );
+    const second = resolveRevisionSensitiveIdempotencyKey(
+      material,
+      keyRef,
+      materialRef,
+      mint,
+    );
+    expect(first).toEqual({ kind: "proceed", key: "key-1" });
+    expect(second).toEqual({ kind: "proceed", key: "key-1" });
+    expect(minted).toBe(1);
+  });
+
+  it("resolveRevisionSensitiveIdempotencyKey aborts when revision material changes", () => {
+    const keyRef = { current: null as string | null };
+    const materialRef = { current: null as string | null };
+    let minted = 0;
+    const mint = () => {
+      minted += 1;
+      return `key-${minted}`;
+    };
+    const first = resolveRevisionSensitiveIdempotencyKey(
+      observationCorrectMaterial({
+        executionId: "exec-a",
+        observationId: "obs-1",
+        expectedRevision: 0,
+        body: "same",
+      }),
+      keyRef,
+      materialRef,
+      mint,
+    );
+    expect(first).toEqual({ kind: "proceed", key: "key-1" });
+    const aborted = resolveRevisionSensitiveIdempotencyKey(
+      observationCorrectMaterial({
+        executionId: "exec-a",
+        observationId: "obs-1",
+        expectedRevision: 1,
+        body: "same",
+      }),
+      keyRef,
+      materialRef,
+      mint,
+    );
+    expect(aborted).toEqual({ kind: "abort_stale_material" });
+    expect(keyRef.current).toBe("key-1");
+    expect(minted).toBe(1);
+    clearIdempotencyAssociation(keyRef, materialRef);
+    const renewed = resolveRevisionSensitiveIdempotencyKey(
+      observationCorrectMaterial({
+        executionId: "exec-a",
+        observationId: "obs-1",
+        expectedRevision: 1,
+        body: "same",
+      }),
+      keyRef,
+      materialRef,
+      mint,
+    );
+    expect(renewed).toEqual({ kind: "proceed", key: "key-2" });
   });
 });

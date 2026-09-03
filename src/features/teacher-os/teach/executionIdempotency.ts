@@ -70,6 +70,7 @@ export function executionLifecycleMaterial(input: {
 
 /**
  * Reuse key only when canonical material is unchanged; otherwise mint a new key.
+ * Suitable for START / observation-create where a changed request is a new deliberate action.
  */
 export function retainOrMintIdempotencyKey(
   material: string,
@@ -85,6 +86,33 @@ export function retainOrMintIdempotencyKey(
     keyRef.current = mint();
   }
   return keyRef.current;
+}
+
+export type RevisionSensitiveKeyResult =
+  | { kind: "proceed"; key: string }
+  | { kind: "abort_stale_material" };
+
+/**
+ * For observation-correct / complete / cancel recoverable retries:
+ * - no prior association → mint and proceed
+ * - same material → reuse key and proceed
+ * - prior association with different material → abort (do not mint-and-continue)
+ */
+export function resolveRevisionSensitiveIdempotencyKey(
+  material: string,
+  keyRef: { current: string | null },
+  materialRef: { current: string | null },
+  mint: () => string = () => crypto.randomUUID(),
+): RevisionSensitiveKeyResult {
+  if (keyRef.current === null || materialRef.current === null) {
+    keyRef.current = mint();
+    materialRef.current = material;
+    return { kind: "proceed", key: keyRef.current };
+  }
+  if (materialRef.current === material) {
+    return { kind: "proceed", key: keyRef.current };
+  }
+  return { kind: "abort_stale_material" };
 }
 
 export function clearIdempotencyAssociation(

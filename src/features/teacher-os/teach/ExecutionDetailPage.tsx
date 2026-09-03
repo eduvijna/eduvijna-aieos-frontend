@@ -23,6 +23,7 @@ import {
   executionLifecycleMaterial,
   observationCorrectMaterial,
   observationCreateMaterial,
+  resolveRevisionSensitiveIdempotencyKey,
   retainOrMintIdempotencyKey,
 } from "./executionIdempotency";
 import {
@@ -301,17 +302,25 @@ export function ExecutionDetailPage() {
         expectedRevision: observation.revision,
         body,
       });
-      const idempotencyKey = retainOrMintIdempotencyKey(
+      const resolved = resolveRevisionSensitiveIdempotencyKey(
         material,
         correctKeyRef,
         correctMaterialRef,
       );
+      if (resolved.kind === "abort_stale_material") {
+        clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
+        setCorrectDraft(observation.body);
+        setActionMessage(
+          "This observation changed since your last attempt. Latest state was reloaded — review the note and save again as a new deliberate correction.",
+        );
+        return;
+      }
       await correctTeachingExecutionObservation(
         fresh.execution.execution_id,
         observationId,
         { body },
         observationRevisionEtag(observation),
-        idempotencyKey,
+        resolved.key,
       );
       clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
       setCorrectingId(null);
@@ -340,15 +349,23 @@ export function ExecutionDetailPage() {
         expectedAggregateRevision: fresh.execution.aggregate_revision,
         action: "complete",
       });
-      const idempotencyKey = retainOrMintIdempotencyKey(
+      const resolved = resolveRevisionSensitiveIdempotencyKey(
         material,
         completeKeyRef,
         completeMaterialRef,
       );
+      if (resolved.kind === "abort_stale_material") {
+        clearIdempotencyAssociation(completeKeyRef, completeMaterialRef);
+        setConfirmComplete(false);
+        setActionMessage(
+          "This TeachingExecution changed since your last attempt. Latest state was reloaded — confirm Complete again if you still want to finish the lesson.",
+        );
+        return;
+      }
       const response = await completeTeachingExecution(
         fresh.execution.execution_id,
         fresh.etag,
-        idempotencyKey,
+        resolved.key,
       );
       clearIdempotencyAssociation(completeKeyRef, completeMaterialRef);
       setConfirmComplete(false);
@@ -382,15 +399,23 @@ export function ExecutionDetailPage() {
         expectedAggregateRevision: fresh.execution.aggregate_revision,
         action: "cancel",
       });
-      const idempotencyKey = retainOrMintIdempotencyKey(
+      const resolved = resolveRevisionSensitiveIdempotencyKey(
         material,
         cancelKeyRef,
         cancelMaterialRef,
       );
+      if (resolved.kind === "abort_stale_material") {
+        clearIdempotencyAssociation(cancelKeyRef, cancelMaterialRef);
+        setConfirmCancel(false);
+        setActionMessage(
+          "This TeachingExecution changed since your last attempt. Latest state was reloaded — confirm Cancel again if you still want to cancel the lesson.",
+        );
+        return;
+      }
       const response = await cancelTeachingExecution(
         fresh.execution.execution_id,
         fresh.etag,
-        idempotencyKey,
+        resolved.key,
       );
       clearIdempotencyAssociation(cancelKeyRef, cancelMaterialRef);
       setConfirmCancel(false);
