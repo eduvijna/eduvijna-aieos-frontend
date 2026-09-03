@@ -1,9 +1,10 @@
-"""Seed approved-but-unpublished worksheet precondition for product E2E.
+"""Seed TeachingWork + approved worksheet precondition for product E2E.
 
 Uses build_development_teacher_os_app HTTP contracts only:
   create work → generate (fake model) → approve (NOT publish)
 
-Writes fixture JSON for Playwright. NON_PRODUCTION only.
+Writes fixture JSON for Playwright Assignment + TeachingExecution journeys.
+NON_PRODUCTION only. Governed Backend pin / migration head: see fixture fields.
 """
 
 from __future__ import annotations
@@ -16,10 +17,11 @@ from pathlib import Path
 
 
 SCENARIO_MARKER = (
-    "[TOS-DEV06-I05:product-e2e] Approved unpublished worksheet "
-    "for assignment product E2E"
+    "[TOS-DEV07-I04:product-e2e] TeachingExecution real-stack product journey"
 )
-SCENARIO_ID = "tos-dev06-i05-assignment-product-e2e"
+SCENARIO_ID = "tos-dev07-i04-teaching-execution-product-e2e"
+BACKEND_PIN_SHA = "551e46e004233421746e4df2789c07367702528b"
+EXPECTED_MIGRATION_HEAD = "tosd070002"
 
 
 def _backend_root() -> Path:
@@ -50,8 +52,6 @@ def main() -> int:
     backend = _backend_root()
     sys.path.insert(0, str(backend / "src"))
     sys.path.insert(0, str(backend))
-
-    from uuid import UUID
 
     from fastapi.testclient import TestClient
     from sqlalchemy import create_engine, text
@@ -229,12 +229,13 @@ def main() -> int:
                 """
             )
         ).scalar_one()
-        if row != "tosd060002":
+        if row != EXPECTED_MIGRATION_HEAD:
             raise RuntimeError(f"unexpected migration head {row}")
 
     fixture = {
         "scenario_id": SCENARIO_ID,
-        "backend_pin_sha": "06e05277e73e0c71172cae4904efb37d771c3fad",
+        "backend_pin_sha": BACKEND_PIN_SHA,
+        "migration_head": EXPECTED_MIGRATION_HEAD,
         "tenant_id": str(tenant_id),
         "principal_id": str(principal_id),
         "bearer_token": "product-e2e-dev",
@@ -245,6 +246,7 @@ def main() -> int:
         "stewardship_state": "APPROVED",
         "published_version_id_before": published_version_id_before,
         "current_version_id": version_id,
+        "scenario_marker": SCENARIO_MARKER,
         "seeded_at": datetime.now(UTC).isoformat(),
         "fake_model_calls": len(gateway.calls),
     }

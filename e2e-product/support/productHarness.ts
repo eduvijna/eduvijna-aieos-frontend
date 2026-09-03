@@ -4,11 +4,17 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 export const DEV_TENANT_ID = "71b5fb49-2bdb-56c3-ab7c-3b33e92a89f0";
+export const DEV_PRINCIPAL_ID = "f85329ab-f05b-564e-a67b-318f3e1f3cf3";
 export const DEV_BEARER_TOKEN = "product-e2e-dev";
+
+export const BACKEND_PIN_SHA =
+  "551e46e004233421746e4df2789c07367702528b";
+export const EXPECTED_MIGRATION_HEAD = "tosd070002";
 
 export type ProductFixture = {
   scenario_id: string;
   backend_pin_sha: string;
+  migration_head?: string;
   tenant_id: string;
   principal_id: string;
   bearer_token: string;
@@ -19,6 +25,30 @@ export type ProductFixture = {
   stewardship_state: string;
   published_version_id_before: string | null;
   current_version_id: string;
+  scenario_marker?: string;
+};
+
+export type TeachingExecutionDto = {
+  execution_id: string;
+  work_id: string;
+  class_ref: string;
+  teacher_principal_id: string;
+  lifecycle_state: string;
+  started_at: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  aggregate_revision: number;
+  bindings: Array<{
+    content_id: string;
+    content_version_id: string;
+    artifact_kind: string;
+  }>;
+  observations: Array<{
+    observation_id: string;
+    observation_kind: string;
+    body: string;
+    revision: number;
+  }>;
 };
 
 let cachedFixture: ProductFixture | null = null;
@@ -29,6 +59,10 @@ export function loadProductFixture(): ProductFixture {
     process.env.PRODUCT_E2E_FIXTURE_PATH ??
     resolve(process.cwd(), "tmp/product-e2e-fixture.json");
   cachedFixture = JSON.parse(readFileSync(fixturePath, "utf8")) as ProductFixture;
+  expect(cachedFixture.backend_pin_sha).toBe(BACKEND_PIN_SHA);
+  if (cachedFixture.migration_head) {
+    expect(cachedFixture.migration_head).toBe(EXPECTED_MIGRATION_HEAD);
+  }
   return cachedFixture;
 }
 
@@ -70,4 +104,29 @@ export function calendarDateLocal(offsetDays: number): string {
   date.setHours(14, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export async function fetchTeachingExecution(
+  page: Page,
+  executionId: string,
+): Promise<TeachingExecutionDto> {
+  const response = await page.request.get(
+    `/api/v1/teaching/executions/${executionId}`,
+    { headers: apiHeaders() },
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json() as Promise<TeachingExecutionDto>;
+}
+
+export function assertNoLearnerExecutionFields(payload: Record<string, unknown>) {
+  for (const key of [
+    "learner_id",
+    "student_id",
+    "attendance",
+    "score",
+    "grade",
+    "mastery",
+  ]) {
+    expect(payload).not.toHaveProperty(key);
+  }
 }

@@ -1,7 +1,8 @@
-"""Bootstrap disposable PostgreSQL 18 for TOS-DEV06-I05 product E2E.
+"""Bootstrap disposable PostgreSQL 18 for TOS-DEV07-I04 product E2E.
 
 Reuses backend tests/conftest.py identity, migration, and runtime-grant patterns.
 NON_PRODUCTION only. Requires AIEOS_BACKEND_ROOT.
+Governed migration head: tosd070002.
 """
 
 from __future__ import annotations
@@ -83,8 +84,8 @@ def main() -> int:
         head = conn.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
-    if head != "tosd060002":
-        raise RuntimeError(f"Expected migration head tosd060002; got {head}")
+    if head != "tosd070002":
+        raise RuntimeError(f"Expected migration head tosd070002; got {head}")
     provision_runtime_grants(bootstrap)
 
     report = {
