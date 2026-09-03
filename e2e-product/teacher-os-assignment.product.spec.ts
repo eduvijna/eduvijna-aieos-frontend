@@ -326,15 +326,18 @@ test.describe("TOS-DEV06-I05 Assignment Product E2E", () => {
       page.getByText("Assigned ≠ Taught ≠ Assessed ≠ Mastered"),
     ).toBeVisible();
     const pageText = await page.locator("body").textContent();
+    // Affirmative delivery/assessment claims only — negation clarifying copy
+    // ("not … learner receipt") must not trip these checks.
     const forbiddenClaims = [
       /sent to students/i,
       /delivered to learners/i,
       /learners notified/i,
       /LMS published/i,
-      /learner receipt/i,
+      /(?:recorded|confirmed|shows|means)\s+learner receipt/i,
       /roster snapshot/i,
       /submitted to/i,
       /has been graded/i,
+      /assignment means (?:delivered|taught|attempted|assessed|mastered)/i,
     ];
     for (const pattern of forbiddenClaims) {
       expect(pageText ?? "").not.toMatch(pattern);
