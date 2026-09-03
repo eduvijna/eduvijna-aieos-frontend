@@ -9,6 +9,7 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV07-I04: TeachingExecution real-stack Product E2E on the existing product harness; Backend pin `551e46e004233421746e4df2789c07367702528b`, OpenAPI `7D7D0E7C…289A`, migration head `tosd070002`; preserves Assignment product regression.
 - TOS-DEV06-I05: real-stack Assignment Product E2E lane (`pnpm test:e2e:product`) using Chromium, Vite `/api` proxy, `build_development_teacher_os_app`, disposable PostgreSQL 18, and zero Playwright `/api` route mocks; separate CI `product-e2e` job with Backend pin `06e05277e73e0c71172cae4904efb37d771c3fad`.
 - TOS-DEV02 Lane A: Mission-first Today screen reading `GET /api/v1/teacher-os/today/mission` for the browser's local calendar date, with hero actions derived from the projection (`review`, `continue_work`, `prepare_tomorrow`) and no invented timetable, attendance, or school metrics.
 - TOS-DEV02 Lane A: outcome-first Teaching Intent flow at `/teacher-os/prepare` (outcome → context → confirm) creating a durable Teaching Work via `POST /api/v1/teaching/works` with a reused `Idempotency-Key`, replacing the DEV01 Prepare placeholder.

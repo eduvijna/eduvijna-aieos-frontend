@@ -1,15 +1,16 @@
-# TOS-DEV06-I05 Product E2E
+# TOS-DEV07-I04 Product E2E
 
-Real-stack Playwright lane proving the Assignment product journey against live HTTP — **no `/api` Playwright mocks**.
+Real-stack Playwright lane proving Assignment regression and TeachingExecution
+product journeys against live HTTP — **no `/api` Playwright mocks**.
 
 ## Governed pins
 
 | Artifact | SHA |
 |----------|-----|
-| Frontend base | `e8d5776e9b51c4f19eaa2d0aafe4e7aa80315fcc` |
-| Backend read-only pin | `06e05277e73e0c71172cae4904efb37d771c3fad` |
-| OpenAPI authority | `CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C` |
-| Migration head | `tosd060002` |
+| Frontend base | `7902e59d32af0a8b4670acce831cdf622c520bbc` |
+| Backend read-only pin | `551e46e004233421746e4df2789c07367702528b` |
+| OpenAPI authority | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
+| Migration head | `tosd070002` |
 
 ## Non-production boundary
 
@@ -41,7 +42,7 @@ Optional env overrides:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `AIEOS_BACKEND_ROOT` | *(required)* | Backend repo path |
+| `AIEOS_BACKEND_ROOT` | *(required)* | Backend repo path (must be at pin SHA) |
 | `PLAYWRIGHT_PORT` | `5181` | Vite dev server port |
 | `PRODUCT_E2E_BACKEND_PORT` | `8000` | Development API port |
 | `AIEOS_TEST_PG_PORT` | `55433` | Host port for PG18 Docker |
@@ -61,8 +62,23 @@ Chromium → Vite dev (5181) → /api proxy → uvicorn development app (8000)
                                     PostgreSQL 18 (disposable)
 ```
 
-Precondition seed (before browser tests): create TeachingWork → generate worksheet (fake model) → approve — **not publish**.
+Precondition seed (before browser tests): create TeachingWork → generate worksheet
+(fake model) → approve — **not publish** on a fresh database. Assignment Phase A
+(and TeachingExecution prerequisites) publish the exact fixture version when needed.
+
+Scenario marker:
+
+`[TOS-DEV07-I04:product-e2e] TeachingExecution real-stack product journey`
+
+## Specs
+
+| Spec | Proves |
+|------|--------|
+| `e2e-product/teacher-os-assignment.product.spec.ts` | DEV06 Assignment regression on current Backend |
+| `e2e-product/teacher-os-execution.product.spec.ts` | TeachingExecution real-stack journey |
 
 ## CI
 
-The `product-e2e` workflow job checks out the pinned Backend SHA, provisions PostgreSQL 18, migrates to `tosd060002`, starts the development app, and runs `pnpm test:e2e:product`.
+The `product-e2e` workflow job checks out Backend `551e46e0…`, provisions PostgreSQL 18,
+migrates to `tosd070002`, starts the development app, and runs `pnpm test:e2e:product`
+(both Assignment and TeachingExecution product specs).
