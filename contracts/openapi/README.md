@@ -10,18 +10,31 @@ This directory holds a **consumer snapshot** of the AIEOS HTTP contract for fron
 - The file `aieos-v1.consumer-snapshot.json` in this frontend repo is **NON-AUTHORITATIVE**.
   It must not be treated as the source of truth for API behaviour.
 
-## Snapshot provenance (TOS-DEV06-I04)
+## Snapshot provenance (TOS-DEV07-I03)
 
 | Field | Value |
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
 | Source path | `contracts/openapi/aieos-v1.json` |
-| Source SHA | `06e05277e73e0c71172cae4904efb37d771c3fad` |
-| Authoritative OpenAPI SHA-256 | `CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C` |
+| Source SHA | `551e46e004233421746e4df2789c07367702528b` |
+| Authoritative OpenAPI SHA-256 | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
-| Consumer file SHA-256 | `CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C` |
+| Consumer file SHA-256 | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
 
-Operations consumed by this frontend at this SHA (Assignment UX additions):
+Operations consumed by this frontend at this SHA (TeachingExecution / Teach UX additions):
+
+| Operation ID | Method | Path |
+|--------------|--------|------|
+| `teacher_os_teach_context_get` | GET | `/api/v1/teacher-os/teach/context` |
+| `teaching_execution_list` | GET | `/api/v1/teaching/executions` |
+| `teaching_execution_start` | POST | `/api/v1/teaching/executions` |
+| `teaching_execution_get` | GET | `/api/v1/teaching/executions/{execution_id}` |
+| `teaching_execution_complete` | POST | `/api/v1/teaching/executions/{execution_id}/actions/complete` |
+| `teaching_execution_cancel` | POST | `/api/v1/teaching/executions/{execution_id}/actions/cancel` |
+| `teaching_execution_observation_create` | POST | `/api/v1/teaching/executions/{execution_id}/observations` |
+| `teaching_execution_observation_correct` | PATCH | `/api/v1/teaching/executions/{execution_id}/observations/{observation_id}` |
+
+Also retained from prior slices (Assignment UX):
 
 | Operation ID | Method | Path |
 |--------------|--------|------|
@@ -33,12 +46,13 @@ Operations consumed by this frontend at this SHA (Assignment UX additions):
 | `teaching_assignment_close` | POST | `/api/v1/teaching/assignments/{assignment_id}/actions/close` |
 | `teaching_assignment_cancel` | POST | `/api/v1/teaching/assignments/{assignment_id}/actions/cancel` |
 
-Also retained from prior slices:
+Also retained from earlier slices:
 
 | Operation ID | Method | Path |
 |--------------|--------|------|
 | `teacher_os_today_mission` | GET | `/api/v1/teacher-os/today/mission` |
 | `teaching_work_create` | POST | `/api/v1/teaching/works` |
+| `teaching_work_list` | GET | `/api/v1/teaching/works` |
 | `teaching_work_get` | GET | `/api/v1/teaching/works/{work_id}` |
 | `teaching_work_refine` | PATCH | `/api/v1/teaching/works/{work_id}` |
 | `teaching_work_generate` | POST | `/api/v1/teaching/works/{work_id}/actions/generate` |
@@ -51,6 +65,7 @@ Also retained from prior slices:
 
 | Slice | Source SHA |
 |-------|------------|
+| TOS-DEV07-I03 | `551e46e004233421746e4df2789c07367702528b` |
 | TOS-DEV06-I04 | `06e05277e73e0c71172cae4904efb37d771c3fad` |
 | TOS-DEV04-I09 | `a461e8ac20e556469a9517b54b6dd6d17f48ee90` |
 | TOS-DEV03R4 Lane A | `3001722e400daca757e22828c8ac843aad6e962f` |
@@ -73,14 +88,14 @@ overrides when the default location or pinned SHA is not current:
 
 ```bash
 AIEOS_BACKEND_ROOT=../eduvijna-aieos-backend \
-AIEOS_BACKEND_OPENAPI_SHA=06e05277e73e0c71172cae4904efb37d771c3fad \
+AIEOS_BACKEND_OPENAPI_SHA=551e46e004233421746e4df2789c07367702528b \
   pnpm sync:openapi
 ```
 
 Verify the consumer file hash after sync:
 
 ```bash
-# Expected: CCD233062672B36A4DB6C6B60E7413AF8EEC6FDAAE9550270C6879E4C4A06D7C
+# Expected: 7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A
 ```
 
 See `scripts/sync-openapi-snapshot.mjs` for how to refresh from a known backend checkout/SHA.

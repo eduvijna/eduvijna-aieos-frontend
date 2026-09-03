@@ -39,45 +39,53 @@ function sampleAssignment(
 }
 
 describe("TOS-DEV06-I04 Teach list", () => {
-  it("shows loading then empty state", async () => {
+  function stubTeachListAssignments(
+    items: Record<string, unknown>[],
+  ) {
     stubFetch((call) => {
-      if (call.url.includes("/api/v1/teaching/assignments")) {
+      if (
+        call.method === "GET" &&
+        call.url.startsWith("/api/v1/teaching/works")
+      ) {
         return mockJsonResponse({ items: [], has_more: false });
+      }
+      if (call.url.includes("/teacher-os/school-context/classes")) {
+        return mockJsonResponse({ items: [] });
+      }
+      if (
+        call.method === "GET" &&
+        (call.url.endsWith("/api/v1/teaching/assignments") ||
+          call.url.includes("/api/v1/teaching/assignments?"))
+      ) {
+        return mockJsonResponse({ items, has_more: false });
       }
       return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
     });
+  }
+
+  it("shows loading then empty state", async () => {
+    stubTeachListAssignments([]);
     renderApp("/teacher-os/teach");
     expect(await screen.findByText("No assignments yet")).toBeInTheDocument();
   });
 
   it("lists ACTIVE/CLOSED/CANCELLED and source artifact link", async () => {
-    stubFetch((call) => {
-      if (
-        call.method === "GET" &&
-        call.url.endsWith("/api/v1/teaching/assignments")
-      ) {
-        return mockJsonResponse({
-          items: [
-            sampleAssignment({ lifecycle_state: "ACTIVE" }),
-            sampleAssignment({
-              assignment_id: "cccccccc-cccc-7ccc-cccc-cccccccccccc",
-              lifecycle_state: "CLOSED",
-              closed_at: "2026-09-02T10:00:00Z",
-              aggregate_revision: 1,
-              source_work_id: null,
-            }),
-            sampleAssignment({
-              assignment_id: "dddddddd-dddd-7ddd-dddd-dddddddddddd",
-              lifecycle_state: "CANCELLED",
-              cancelled_at: "2026-09-02T11:00:00Z",
-              aggregate_revision: 1,
-            }),
-          ],
-          has_more: false,
-        });
-      }
-      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
-    });
+    stubTeachListAssignments([
+      sampleAssignment({ lifecycle_state: "ACTIVE" }),
+      sampleAssignment({
+        assignment_id: "cccccccc-cccc-7ccc-cccc-cccccccccccc",
+        lifecycle_state: "CLOSED",
+        closed_at: "2026-09-02T10:00:00Z",
+        aggregate_revision: 1,
+        source_work_id: null,
+      }),
+      sampleAssignment({
+        assignment_id: "dddddddd-dddd-7ddd-dddd-dddddddddddd",
+        lifecycle_state: "CANCELLED",
+        cancelled_at: "2026-09-02T11:00:00Z",
+        aggregate_revision: 1,
+      }),
+    ]);
 
     renderApp("/teacher-os/teach");
     expect(await screen.findAllByText("ACTIVE")).toHaveLength(1);
