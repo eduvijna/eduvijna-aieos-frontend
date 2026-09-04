@@ -9,6 +9,11 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV08-I04: ClassroomAssessment real-stack Product E2E on the existing
+  product harness; Backend pin `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d`,
+  OpenAPI `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D`,
+  migration head `tosd080002`; CASE A RECORD/CORRECT/VOID plus I03R1 stale VOID
+  concurrency; preserves Assignment and TeachingExecution product regressions.
 - TOS-DEV08-I03R1: Assess CORRECT/VOID concurrency basis + 409 problem-code
   semantics on PR #11 — teacher-reviewed revision remains command basis;
   preflight GET validates without transferring drafts onto newer revisions;

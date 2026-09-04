@@ -8,8 +8,12 @@ export const DEV_PRINCIPAL_ID = "f85329ab-f05b-564e-a67b-318f3e1f3cf3";
 export const DEV_BEARER_TOKEN = "product-e2e-dev";
 
 export const BACKEND_PIN_SHA =
-  "551e46e004233421746e4df2789c07367702528b";
-export const EXPECTED_MIGRATION_HEAD = "tosd070002";
+  "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
+export const EXPECTED_MIGRATION_HEAD = "tosd080002";
+export const OPENAPI_AUTHORITY_SHA =
+  "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D";
+export const FRONTEND_BASE_SHA =
+  "398710f168c81cf6fb1f6aebe2b667a1a0bfc575";
 
 export type ProductFixture = {
   scenario_id: string;
@@ -126,6 +130,82 @@ export function assertNoLearnerExecutionFields(payload: Record<string, unknown>)
     "score",
     "grade",
     "mastery",
+  ]) {
+    expect(payload).not.toHaveProperty(key);
+  }
+}
+
+export type ClassroomAssessmentDto = {
+  assessment_id: string;
+  lifecycle_state: string;
+  class_ref: string;
+  class_result_level: string;
+  class_result_note: string | null;
+  content_id: string;
+  content_version_id: string;
+  execution_id: string | null;
+  work_id: string | null;
+  assignment_id: string | null;
+  aggregate_revision: number;
+  teacher_principal_id: string;
+  recorded_at: string;
+  voided_at: string | null;
+};
+
+export async function listClassroomAssessments(
+  page: Page,
+  filters?: {
+    executionId?: string;
+    workId?: string;
+    classRef?: string;
+    limit?: number;
+  },
+): Promise<ClassroomAssessmentDto[]> {
+  const response = await page.request.get(
+    "/api/v1/assessment/classroom-assessments",
+    {
+      headers: apiHeaders(),
+      params: {
+        execution_id: filters?.executionId,
+        work_id: filters?.workId,
+        class_ref: filters?.classRef,
+        limit: filters?.limit ?? 50,
+      },
+    },
+  );
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { items: ClassroomAssessmentDto[] };
+  return body.items;
+}
+
+export async function fetchClassroomAssessment(
+  page: Page,
+  assessmentId: string,
+): Promise<{ data: ClassroomAssessmentDto; etag: string | null }> {
+  const response = await page.request.get(
+    `/api/v1/assessment/classroom-assessments/${assessmentId}`,
+    { headers: apiHeaders() },
+  );
+  expect(response.ok()).toBeTruthy();
+  return {
+    data: (await response.json()) as ClassroomAssessmentDto,
+    etag: response.headers()["etag"] ?? null,
+  };
+}
+
+export function assertNoLearnerAssessmentFields(
+  payload: Record<string, unknown>,
+) {
+  for (const key of [
+    "learner_id",
+    "student_id",
+    "LearnerRef",
+    "StudentRef",
+    "roster",
+    "score",
+    "grade",
+    "mastery",
+    "individual_result",
   ]) {
     expect(payload).not.toHaveProperty(key);
   }
