@@ -71,6 +71,13 @@ pnpm exec vitest run src/features/teacher-os/assess
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
+## Correction — TOS-DEV08-I03R1
+
+- CORRECT/VOID use the teacher-reviewed aggregate revision as command basis.
+- Preflight GET validates only; same revision preserves unsent correction draft.
+- Stale preflight aborts with zero mutation POST and requires a new deliberate action.
+- HTTP 409: only `idempotency_key_reused` gets key-reuse UX; `classroom_assessment_not_recorded` reloads lifecycle state.
+
 ## Explicit non-goals (this slice)
 
 - Learner rows / roster / attempts / submissions / grades

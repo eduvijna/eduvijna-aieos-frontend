@@ -479,4 +479,308 @@ describe("TOS-DEV08-I03 Assess page", () => {
       screen.queryByRole("button", { name: /Record class assessment/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("CORRECT stale preflight aborts without POST and reloads r1", async () => {
+    const user = userEvent.setup();
+    let detailGets = 0;
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        detailGets += 1;
+        if (detailGets === 1) {
+          return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+        }
+        return mockJsonResponse(
+          sampleAssessment({
+            class_result_level: "NOT_YET_DEMONSTRATED",
+            class_result_note: "Server already corrected",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/correct")) {
+        return mockJsonResponse(sampleAssessment({ aggregate_revision: 2 }), {
+          etag: '"r2"',
+        });
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Correct assessment/i });
+    await user.click(screen.getByRole("radio", { name: /^Mixed/i }));
+    await user.type(
+      screen.getByLabelText("Correct class result note"),
+      "Teacher draft note",
+    );
+    await user.click(screen.getByRole("button", { name: /Correct assessment/i }));
+
+    expect(
+      await screen.findByText(/changed on the server since you reviewed it/i),
+    ).toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.url.includes("/actions/correct")),
+    ).toHaveLength(0);
+    expect(screen.getAllByText(/NOT_YET_DEMONSTRATED/).length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.getAllByText("Server already corrected").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("VOID stale preflight aborts without POST and resets confirmation", async () => {
+    const user = userEvent.setup();
+    let detailGets = 0;
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        detailGets += 1;
+        if (detailGets === 1) {
+          return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+        }
+        return mockJsonResponse(
+          sampleAssessment({
+            class_result_level: "MIXED",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/void")) {
+        return mockJsonResponse(
+          sampleAssessment({ lifecycle_state: "VOIDED", aggregate_revision: 2 }),
+          { etag: '"r2"' },
+        );
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Void assessment/i });
+    await user.click(screen.getByRole("button", { name: /Void assessment/i }));
+    expect(
+      screen.getByRole("group", { name: /Confirm void ClassroomAssessment/i }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Confirm void/i }));
+
+    expect(
+      await screen.findByText(/changed on the server since you confirmed void/i),
+    ).toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.url.includes("/actions/void")),
+    ).toHaveLength(0);
+    expect(
+      screen.queryByRole("group", { name: /Confirm void ClassroomAssessment/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText(/MIXED/).length).toBeGreaterThan(0);
+  });
+
+  it("CORRECT classroom_assessment_not_recorded is not key-reuse UX", async () => {
+    const user = userEvent.setup();
+    let detailGets = 0;
+    stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        detailGets += 1;
+        if (detailGets <= 2) {
+          return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+        }
+        return mockJsonResponse(
+          sampleAssessment({
+            lifecycle_state: "VOIDED",
+            voided_at: "2026-09-03T12:00:00Z",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/correct")) {
+        return mockProblemResponse(409, "classroom_assessment_not_recorded");
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Correct assessment/i });
+    await user.click(screen.getByRole("button", { name: /Correct assessment/i }));
+
+    expect(
+      await screen.findByText(/no longer RECORDED/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Idempotency-Key/i)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-state="VOIDED"]')).toBeTruthy();
+  });
+
+  it("CORRECT idempotency_key_reused clears association so next key differs", async () => {
+    const user = userEvent.setup();
+    let correctPosts = 0;
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/correct")) {
+        correctPosts += 1;
+        if (correctPosts === 1) {
+          return mockProblemResponse(409, "idempotency_key_reused");
+        }
+        return mockJsonResponse(
+          sampleAssessment({
+            class_result_level: "MIXED",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Correct assessment/i });
+    await user.click(screen.getByRole("radio", { name: /^Mixed/i }));
+    await user.click(screen.getByRole("button", { name: /Correct assessment/i }));
+    expect(await screen.findByText(/Idempotency-Key conflicts/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Correct assessment/i }));
+    await waitFor(() => {
+      const corrects = calls.filter((call) =>
+        call.url.includes("/actions/correct"),
+      );
+      expect(corrects).toHaveLength(2);
+      expect(corrects[0]?.headers.get("Idempotency-Key")).toBeTruthy();
+      expect(corrects[1]?.headers.get("Idempotency-Key")).toBeTruthy();
+      expect(corrects[0]?.headers.get("Idempotency-Key")).not.toBe(
+        corrects[1]?.headers.get("Idempotency-Key"),
+      );
+    });
+  });
+
+  it("VOID idempotency_key_reused clears association so next key differs", async () => {
+    const user = userEvent.setup();
+    let voidPosts = 0;
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/void")) {
+        voidPosts += 1;
+        if (voidPosts === 1) {
+          return mockProblemResponse(409, "idempotency_key_reused");
+        }
+        return mockJsonResponse(
+          sampleAssessment({
+            lifecycle_state: "VOIDED",
+            voided_at: "2026-09-03T12:00:00Z",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Void assessment/i });
+    await user.click(screen.getByRole("button", { name: /Void assessment/i }));
+    await user.click(screen.getByRole("button", { name: /Confirm void/i }));
+    expect(await screen.findByText(/Idempotency-Key conflicts/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Void assessment/i }));
+    await user.click(screen.getByRole("button", { name: /Confirm void/i }));
+    await waitFor(() => {
+      const voids = calls.filter((call) => call.url.includes("/actions/void"));
+      expect(voids).toHaveLength(2);
+      expect(voids[0]?.headers.get("Idempotency-Key")).not.toBe(
+        voids[1]?.headers.get("Idempotency-Key"),
+      );
+    });
+  });
+
+  it("same-revision CORRECT preflight preserves teacher draft", async () => {
+    const user = userEvent.setup();
+    const calls = stubFetch((call) => {
+      if (
+        call.method === "GET" &&
+        call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)
+      ) {
+        return mockJsonResponse(sampleAssessment(), { etag: '"r0"' });
+      }
+      if (
+        call.method === "GET" &&
+        call.url.includes("/api/v1/assessment/classroom-assessments")
+      ) {
+        return mockJsonResponse({ items: [sampleAssessment()] });
+      }
+      if (call.url.includes("/actions/correct")) {
+        return mockJsonResponse(
+          sampleAssessment({
+            class_result_level: "MIXED",
+            class_result_note: "Preserved draft",
+            aggregate_revision: 1,
+          }),
+          { etag: '"r1"' },
+        );
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/assess?assessment_id=${ASSESSMENT_ID}`);
+    await screen.findByRole("button", { name: /Correct assessment/i });
+    await user.click(screen.getByRole("radio", { name: /^Mixed/i }));
+    await user.type(
+      screen.getByLabelText("Correct class result note"),
+      "Preserved draft",
+    );
+    await user.click(screen.getByRole("button", { name: /Correct assessment/i }));
+
+    await waitFor(() => {
+      const correct = calls.find((call) => call.url.includes("/actions/correct"));
+      expect(correct?.headers.get("If-Match")).toBe('"r0"');
+      expect(correct?.body).toMatchObject({
+        class_result_level: "MIXED",
+        class_result_note: "Preserved draft",
+      });
+    });
+  });
 });

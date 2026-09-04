@@ -25,7 +25,6 @@ import { LoadingState } from "@/shared/components/LoadingState";
 import {
   clearIdempotencyAssociation,
   correctAssessmentMaterial,
-  parseRevisionFromEtag,
   recordAssessmentMaterial,
   resolveRevisionSensitiveIdempotencyKey,
   retainOrMintIdempotencyKey,
@@ -97,6 +96,9 @@ export function AssessPage() {
     useState<ClassResultLevel>("DEMONSTRATED");
   const [resultNote, setResultNote] = useState("");
   const [confirmVoid, setConfirmVoid] = useState(false);
+  const [voidBasisRevision, setVoidBasisRevision] = useState<number | null>(
+    null,
+  );
   const [staleNotice, setStaleNotice] = useState<string | null>(null);
 
   const recordKeyRef = useRef<string | null>(null);
@@ -116,6 +118,23 @@ export function AssessPage() {
     );
   }, [eligibleBindings, selectedBindingKey]);
 
+  const clearMutationAssociation = useCallback(
+    (operation: "record" | "correct" | "void") => {
+      switch (operation) {
+        case "record":
+          clearIdempotencyAssociation(recordKeyRef, recordMaterialRef);
+          break;
+        case "correct":
+          clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
+          break;
+        case "void":
+          clearIdempotencyAssociation(voidKeyRef, voidMaterialRef);
+          break;
+      }
+    },
+    [],
+  );
+
   const applySelectedAssessment = useCallback(
     (assessment: ClassroomAssessmentResponse, etag: string | null) => {
       setSelected(assessment);
@@ -125,6 +144,7 @@ export function AssessPage() {
       }
       setResultNote(assessment.class_result_note ?? "");
       setConfirmVoid(false);
+      setVoidBasisRevision(null);
     },
     [],
   );
@@ -263,7 +283,7 @@ export function AssessPage() {
     setErrorMessage(null);
     try {
       const response = await recordClassroomAssessment(body, key);
-      clearIdempotencyAssociation(recordKeyRef, recordMaterialRef);
+      clearMutationAssociation("record");
       applySelectedAssessment(response.data, response.etag);
       setSearchParams(
         {
@@ -303,29 +323,48 @@ export function AssessPage() {
       return;
     }
 
+    const reviewedRevision = selected.aggregate_revision;
+    const reviewedEtag =
+      selectedEtag ?? assessmentRevisionEtag(reviewedRevision);
+    const draftLevel = resultLevel;
+    const draftNoteText = resultNote;
+    const note = normalizeNote(draftNoteText);
+
     setBusy(true);
     setStatus("correcting");
     setActionMessage(null);
     setStaleNotice(null);
     try {
-      const fresh = await reloadSelected(selected.assessment_id);
+      // Preflight validates current server revision only — do not apply yet
+      // (that would silently transfer this draft onto a newer revision).
+      const fresh = await getClassroomAssessment(selected.assessment_id);
+      if (fresh.data.aggregate_revision !== reviewedRevision) {
+        clearMutationAssociation("correct");
+        applySelectedAssessment(fresh.data, fresh.etag);
+        setStaleNotice(
+          "This ClassroomAssessment changed on the server since you reviewed it. Review the current result, then take a new deliberate correction. No automatic resubmit.",
+        );
+        setStatus("ready");
+        return;
+      }
       if (!isAssessmentRecorded(fresh.data)) {
+        clearMutationAssociation("correct");
+        applySelectedAssessment(fresh.data, fresh.etag);
         setActionMessage(
           "This ClassroomAssessment is no longer RECORDED. Review the current state.",
         );
         setStatus("ready");
         return;
       }
-      const etag =
-        fresh.etag ??
-        assessmentRevisionEtag(fresh.data.aggregate_revision);
-      const expectedRevision =
-        parseRevisionFromEtag(etag) ?? fresh.data.aggregate_revision;
-      const note = normalizeNote(resultNote);
+
+      // Same revision: restore draft explicitly so preflight cannot erase it.
+      setResultLevel(draftLevel);
+      setResultNote(draftNoteText);
+
       const material = correctAssessmentMaterial({
-        assessmentId: fresh.data.assessment_id,
-        expectedAggregateRevision: expectedRevision,
-        classResultLevel: resultLevel,
+        assessmentId: selected.assessment_id,
+        expectedAggregateRevision: reviewedRevision,
+        classResultLevel: draftLevel,
         classResultNote: note,
       });
       const keyResult = resolveRevisionSensitiveIdempotencyKey(
@@ -334,9 +373,9 @@ export function AssessPage() {
         correctMaterialRef,
       );
       if (keyResult.kind === "abort_stale_material") {
-        clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
+        clearMutationAssociation("correct");
         setStaleNotice(
-          "Your correction draft no longer matches the server Assessment. Review the current result and start a new deliberate correction.",
+          "Your correction draft changed while a retry was in flight. Review the current result and start a new deliberate correction.",
         );
         setStatus("ready");
         return;
@@ -344,15 +383,15 @@ export function AssessPage() {
 
       mutationInFlightRef.current = true;
       const response = await correctClassroomAssessment(
-        fresh.data.assessment_id,
+        selected.assessment_id,
         {
-          class_result_level: resultLevel,
+          class_result_level: draftLevel,
           class_result_note: note,
         },
-        etag,
+        reviewedEtag,
         keyResult.key,
       );
-      clearIdempotencyAssociation(correctKeyRef, correctMaterialRef);
+      clearMutationAssociation("correct");
       applySelectedAssessment(response.data, response.etag);
       setActionMessage("Classroom assessment corrected.");
       const listResponse = await listClassroomAssessments({
@@ -377,28 +416,39 @@ export function AssessPage() {
       return;
     }
 
+    const reviewedRevision =
+      voidBasisRevision ?? selected.aggregate_revision;
+    const reviewedEtag =
+      selectedEtag ?? assessmentRevisionEtag(reviewedRevision);
+
     setBusy(true);
     setStatus("voiding");
     setActionMessage(null);
     setStaleNotice(null);
     try {
-      const fresh = await reloadSelected(selected.assessment_id);
-      if (!isAssessmentRecorded(fresh.data)) {
-        setActionMessage(
-          "This ClassroomAssessment is no longer RECORDED. Review the current state.",
+      const fresh = await getClassroomAssessment(selected.assessment_id);
+      if (fresh.data.aggregate_revision !== reviewedRevision) {
+        clearMutationAssociation("void");
+        applySelectedAssessment(fresh.data, fresh.etag);
+        setStaleNotice(
+          "This ClassroomAssessment changed on the server since you confirmed void. Review the current result and confirm void again against the new state.",
         );
-        setConfirmVoid(false);
         setStatus("ready");
         return;
       }
-      const etag =
-        fresh.etag ??
-        assessmentRevisionEtag(fresh.data.aggregate_revision);
-      const expectedRevision =
-        parseRevisionFromEtag(etag) ?? fresh.data.aggregate_revision;
+      if (!isAssessmentRecorded(fresh.data)) {
+        clearMutationAssociation("void");
+        applySelectedAssessment(fresh.data, fresh.etag);
+        setActionMessage(
+          "This ClassroomAssessment is no longer RECORDED. Review the current state.",
+        );
+        setStatus("ready");
+        return;
+      }
+
       const material = voidAssessmentMaterial({
-        assessmentId: fresh.data.assessment_id,
-        expectedAggregateRevision: expectedRevision,
+        assessmentId: selected.assessment_id,
+        expectedAggregateRevision: reviewedRevision,
       });
       const keyResult = resolveRevisionSensitiveIdempotencyKey(
         material,
@@ -406,9 +456,11 @@ export function AssessPage() {
         voidMaterialRef,
       );
       if (keyResult.kind === "abort_stale_material") {
-        clearIdempotencyAssociation(voidKeyRef, voidMaterialRef);
+        clearMutationAssociation("void");
+        setConfirmVoid(false);
+        setVoidBasisRevision(null);
         setStaleNotice(
-          "Void material changed while a retry was in flight. Review the Assessment and confirm void again.",
+          "Void confirmation changed while a retry was in flight. Review the Assessment and confirm void again.",
         );
         setStatus("ready");
         return;
@@ -416,13 +468,12 @@ export function AssessPage() {
 
       mutationInFlightRef.current = true;
       const response = await voidClassroomAssessment(
-        fresh.data.assessment_id,
-        etag,
+        selected.assessment_id,
+        reviewedEtag,
         keyResult.key,
       );
-      clearIdempotencyAssociation(voidKeyRef, voidMaterialRef);
+      clearMutationAssociation("void");
       applySelectedAssessment(response.data, response.etag);
-      setConfirmVoid(false);
       setActionMessage(
         "Classroom assessment voided. VOIDED is terminal and remains visible history.",
       );
@@ -451,15 +502,13 @@ export function AssessPage() {
       resetConfirm?: boolean;
     },
   ) {
-    if (options.resetConfirm) setConfirmVoid(false);
+    if (options.resetConfirm) {
+      setConfirmVoid(false);
+      setVoidBasisRevision(null);
+    }
     const code = problemCodeFromApiError(error);
     if (error instanceof ApiError && error.status === 412) {
-      clearIdempotencyAssociation(
-        options.invalidate === "correct" ? correctKeyRef : voidKeyRef,
-        options.invalidate === "correct"
-          ? correctMaterialRef
-          : voidMaterialRef,
-      );
+      clearMutationAssociation(options.invalidate);
       if (selected) {
         await reloadSelected(selected.assessment_id);
       } else {
@@ -478,7 +527,7 @@ export function AssessPage() {
         code === "classroom_assessment_forbidden")
     ) {
       if (options.invalidate === "record") {
-        clearIdempotencyAssociation(recordKeyRef, recordMaterialRef);
+        clearMutationAssociation("record");
       }
       setErrorMessage(
         "You are not authorized for this Assessment action right now. Server authority denied the request.",
@@ -502,13 +551,35 @@ export function AssessPage() {
     }
     if (
       error instanceof ApiError &&
-      (error.status === 409 || code === "idempotency_key_reused")
+      error.status === 409 &&
+      code === "idempotency_key_reused"
     ) {
-      if (options.invalidate === "record") {
-        clearIdempotencyAssociation(recordKeyRef, recordMaterialRef);
+      clearMutationAssociation(options.invalidate);
+      setActionMessage(
+        "This Idempotency-Key conflicts with different material. Start a new deliberate action (a new key will be minted).",
+      );
+      return;
+    }
+    if (
+      error instanceof ApiError &&
+      error.status === 409 &&
+      code === "classroom_assessment_not_recorded"
+    ) {
+      clearMutationAssociation(options.invalidate);
+      if (selected) {
+        await reloadSelected(selected.assessment_id);
+      } else {
+        await load();
       }
       setActionMessage(
-        "This Idempotency-Key conflicts with different material. Reload and start a new deliberate action.",
+        "This ClassroomAssessment is no longer RECORDED. Review the current server state. No automatic resubmit.",
+      );
+      return;
+    }
+    if (error instanceof ApiError && error.status === 409) {
+      setActionMessage(
+        error.message ||
+          "A server conflict prevented this Assessment action. Review the current state and try again.",
       );
       return;
     }
@@ -892,7 +963,10 @@ export function AssessPage() {
                       type="button"
                       className="btn btn-danger"
                       disabled={busy}
-                      onClick={() => setConfirmVoid(true)}
+                      onClick={() => {
+                        setVoidBasisRevision(selected.aggregate_revision);
+                        setConfirmVoid(true);
+                      }}
                     >
                       Void assessment
                     </button>
@@ -921,7 +995,10 @@ export function AssessPage() {
                           type="button"
                           className="btn btn-secondary"
                           disabled={busy}
-                          onClick={() => setConfirmVoid(false)}
+                          onClick={() => {
+                            setConfirmVoid(false);
+                            setVoidBasisRevision(null);
+                          }}
                         >
                           Keep recorded
                         </button>

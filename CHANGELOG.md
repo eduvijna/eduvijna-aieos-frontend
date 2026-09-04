@@ -9,6 +9,10 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV08-I03R1: Assess CORRECT/VOID concurrency basis + 409 problem-code
+  semantics on PR #11 — teacher-reviewed revision remains command basis;
+  preflight GET validates without transferring drafts onto newer revisions;
+  `idempotency_key_reused` vs `classroom_assessment_not_recorded` distinguished.
 - TOS-DEV08-I03: Teacher OS Assess UX replacing `/teacher-os/assess`
   PlaceholderPage; Case A flow from COMPLETED TeachingExecution; ClassroomAssessment
   RECORD/LIST/GET/CORRECT/VOID against Backend pin
