@@ -10,18 +10,28 @@ This directory holds a **consumer snapshot** of the AIEOS HTTP contract for fron
 - The file `aieos-v1.consumer-snapshot.json` in this frontend repo is **NON-AUTHORITATIVE**.
   It must not be treated as the source of truth for API behaviour.
 
-## Snapshot provenance (TOS-DEV07-I03)
+## Snapshot provenance (TOS-DEV08-I03)
 
 | Field | Value |
 |-------|--------|
 | Source repo | `eduvijna-aieos-backend` |
 | Source path | `contracts/openapi/aieos-v1.json` |
-| Source SHA | `551e46e004233421746e4df2789c07367702528b` |
-| Authoritative OpenAPI SHA-256 | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
+| Source SHA | `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` |
+| Authoritative OpenAPI SHA-256 | `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D` |
 | Consumer file | `contracts/openapi/aieos-v1.consumer-snapshot.json` |
-| Consumer file SHA-256 | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
+| Consumer file SHA-256 | `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D` |
 
-Operations consumed by this frontend at this SHA (TeachingExecution / Teach UX additions):
+Operations consumed by this frontend at this SHA (ClassroomAssessment / Assess UX additions):
+
+| Operation ID | Method | Path |
+|--------------|--------|------|
+| `assessment_classroom_list` | GET | `/api/v1/assessment/classroom-assessments` |
+| `assessment_classroom_record` | POST | `/api/v1/assessment/classroom-assessments` |
+| `assessment_classroom_get` | GET | `/api/v1/assessment/classroom-assessments/{assessment_id}` |
+| `assessment_classroom_correct` | POST | `/api/v1/assessment/classroom-assessments/{assessment_id}/actions/correct` |
+| `assessment_classroom_void` | POST | `/api/v1/assessment/classroom-assessments/{assessment_id}/actions/void` |
+
+Also retained from prior slices (TeachingExecution / Teach UX):
 
 | Operation ID | Method | Path |
 |--------------|--------|------|
@@ -65,6 +75,7 @@ Also retained from earlier slices:
 
 | Slice | Source SHA |
 |-------|------------|
+| TOS-DEV08-I03 | `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` |
 | TOS-DEV07-I03 | `551e46e004233421746e4df2789c07367702528b` |
 | TOS-DEV06-I04 | `06e05277e73e0c71172cae4904efb37d771c3fad` |
 | TOS-DEV04-I09 | `a461e8ac20e556469a9517b54b6dd6d17f48ee90` |

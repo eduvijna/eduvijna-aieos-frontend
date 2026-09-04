@@ -1,0 +1,27 @@
+.assess-page .assess-result-fieldset {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.35rem;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  max-width: 40rem;
+}
+
+.assess-page .assess-result-option {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0.55rem 0;
+}
+
+.assess-page .assess-privacy-reminder {
+  max-width: 40rem;
+  font-weight: 500;
+}
+
+.lifecycle-pill[data-state="RECORDED"] {
+  color: var(--color-accent);
+}
+
+.lifecycle-pill[data-state="VOIDED"] {
+  opacity: 0.85;
+}

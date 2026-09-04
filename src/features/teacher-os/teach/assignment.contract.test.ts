@@ -31,9 +31,14 @@ const REQUIRED_OPERATION_IDS = [
   "teaching_execution_cancel",
   "teaching_execution_observation_create",
   "teaching_execution_observation_correct",
+  "assessment_classroom_list",
+  "assessment_classroom_record",
+  "assessment_classroom_get",
+  "assessment_classroom_correct",
+  "assessment_classroom_void",
 ] as const;
 
-describe("TOS-DEV07-I03 OpenAPI consumer contract", () => {
+describe("TOS-DEV08-I03 OpenAPI consumer contract", () => {
   it("consumer snapshot SHA-256 matches Backend OpenAPI authority", () => {
     const bytes = readFileSync(snapshotPath);
     const digest = createHash("sha256")
@@ -41,11 +46,11 @@ describe("TOS-DEV07-I03 OpenAPI consumer contract", () => {
       .digest("hex")
       .toUpperCase();
     expect(digest).toBe(
-      "7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A",
+      "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D",
     );
   });
 
-  it("snapshot and generated types include Assignment + Execution operationIds", () => {
+  it("snapshot and generated types include Assignment + Execution + Assessment operationIds", () => {
     const snapshot = readFileSync(snapshotPath, "utf8");
     const generated = readFileSync(generatedPath, "utf8");
     for (const operationId of REQUIRED_OPERATION_IDS) {

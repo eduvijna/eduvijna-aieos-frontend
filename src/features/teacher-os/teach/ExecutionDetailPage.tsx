@@ -41,6 +41,7 @@ import {
   observationRevisionEtag,
   type ObservationKind,
 } from "./executionPresentation";
+import { assessHrefForExecution } from "../assess/assessmentPresentation";
 import "./teach.css";
 
 const TERMINAL_STATE_NOTICE =
@@ -734,6 +735,28 @@ export function ExecutionDetailPage() {
               </p>
             ) : null}
           </section>
+
+          {execution.lifecycle_state === "COMPLETED" ? (
+            <section
+              className="panel"
+              aria-labelledby="execution-assess-heading"
+            >
+              <h2 id="execution-assess-heading">Assess this class</h2>
+              <p className="muted">
+                Navigation only. Opening Assess does not create a
+                ClassroomAssessment. Completing this lesson did not assess the
+                class. Assessed ≠ Mastered.
+              </p>
+              <div className="detail-actions">
+                <Link
+                  className="btn"
+                  to={assessHrefForExecution(execution.execution_id)}
+                >
+                  Assess this class
+                </Link>
+              </div>
+            </section>
+          ) : null}
 
           {inProgress ? (
             <section
