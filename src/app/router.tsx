@@ -9,6 +9,7 @@ import { ArtifactViewPage } from "@/features/teacher-os/work/ArtifactViewPage";
 import { TeachPage } from "@/features/teacher-os/teach/TeachPage";
 import { AssignmentDetailPage } from "@/features/teacher-os/teach/AssignmentDetailPage";
 import { ExecutionDetailPage } from "@/features/teacher-os/teach/ExecutionDetailPage";
+import { AssessPage } from "@/features/teacher-os/assess/AssessPage";
 import { PlaceholderPage } from "@/features/teacher-os/placeholders/PlaceholderPage";
 import { SettingsPage } from "@/features/teacher-os/placeholders/SettingsPage";
 
@@ -39,10 +40,7 @@ export function AppRouter() {
           path="teach/executions/:executionId"
           element={<ExecutionDetailPage />}
         />
-        <Route
-          path="assess"
-          element={<PlaceholderPage title="Assess" slug="assess" />}
-        />
+        <Route path="assess" element={<AssessPage />} />
         <Route
           path="improve"
           element={<PlaceholderPage title="Improve" slug="improve" />}

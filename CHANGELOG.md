@@ -9,6 +9,12 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV08-I03: Teacher OS Assess UX replacing `/teacher-os/assess`
+  PlaceholderPage; Case A flow from COMPLETED TeachingExecution; ClassroomAssessment
+  RECORD/LIST/GET/CORRECT/VOID against Backend pin
+  `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d`, OpenAPI
+  `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D`, migration
+  head `tosd080002`. Teach → Assess is navigation only.
 - TOS-DEV07-I04: TeachingExecution real-stack Product E2E on the existing product harness; Backend pin `551e46e004233421746e4df2789c07367702528b`, OpenAPI `7D7D0E7C…289A`, migration head `tosd070002`; preserves Assignment product regression.
 - TOS-DEV06-I05: real-stack Assignment Product E2E lane (`pnpm test:e2e:product`) using Chromium, Vite `/api` proxy, `build_development_teacher_os_app`, disposable PostgreSQL 18, and zero Playwright `/api` route mocks; separate CI `product-e2e` job with Backend pin `06e05277e73e0c71172cae4904efb37d771c3fad`.
 - TOS-DEV02 Lane A: Mission-first Today screen reading `GET /api/v1/teacher-os/today/mission` for the browser's local calendar date, with hero actions derived from the projection (`review`, `continue_work`, `prepare_tomorrow`) and no invented timetable, attendance, or school metrics.
@@ -21,6 +27,9 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Non-authoritative OpenAPI consumer snapshot repinned to backend SHA
+  `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` (TOS-DEV08-I02 merge), adding
+  ClassroomAssessment operations, and regenerated API types.
 - Non-authoritative OpenAPI consumer snapshot repinned to backend SHA `f62da1f461957cb443ee422d3a343d15c9ca6640` (`tos-dev02-lane-b-teaching-work-mission`), adding the Teaching Work and Today's Mission operations, and regenerated API types.
 - Today's Mission is now one composition driven by the Mission projection rather than a Review Queue count card; the Review Queue is reached from the Mission review hero.
 - Policy test widened: the frontend must speak only to `/api/v1`, may not import model, agent, memory, or PostgreSQL clients, and may not use browser storage.
