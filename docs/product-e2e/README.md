@@ -1,16 +1,17 @@
-# TOS-DEV07-I04 Product E2E
+# TOS-DEV08-I04 Product E2E
 
-Real-stack Playwright lane proving Assignment regression and TeachingExecution
-product journeys against live HTTP — **no `/api` Playwright mocks**.
+Real-stack Playwright lane proving Assignment regression, TeachingExecution
+regression, and ClassroomAssessment product journeys against live HTTP —
+**no `/api` Playwright mocks**.
 
 ## Governed pins
 
 | Artifact | SHA |
 |----------|-----|
-| Frontend base | `7902e59d32af0a8b4670acce831cdf622c520bbc` |
-| Backend read-only pin | `551e46e004233421746e4df2789c07367702528b` |
-| OpenAPI authority | `7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A` |
-| Migration head | `tosd070002` |
+| Frontend base | `398710f168c81cf6fb1f6aebe2b667a1a0bfc575` |
+| Backend read-only pin | `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` |
+| OpenAPI authority | `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D` |
+| Migration head | `tosd080002` |
 
 ## Non-production boundary
 
@@ -63,12 +64,13 @@ Chromium → Vite dev (5181) → /api proxy → uvicorn development app (8000)
 ```
 
 Precondition seed (before browser tests): create TeachingWork → generate worksheet
-(fake model) → approve — **not publish** on a fresh database. Assignment Phase A
-(and TeachingExecution prerequisites) publish the exact fixture version when needed.
+(fake model) → approve — **not publish** on a fresh database. Assignment,
+TeachingExecution, and ClassroomAssessment prerequisites publish the exact
+fixture version when needed.
 
 Scenario marker:
 
-`[TOS-DEV07-I04:product-e2e] TeachingExecution real-stack product journey`
+`[TOS-DEV08-I04:product-e2e] ClassroomAssessment real-stack product journey`
 
 ## Specs
 
@@ -76,9 +78,17 @@ Scenario marker:
 |------|--------|
 | `e2e-product/teacher-os-assignment.product.spec.ts` | DEV06 Assignment regression on current Backend |
 | `e2e-product/teacher-os-execution.product.spec.ts` | TeachingExecution real-stack journey |
+| `e2e-product/teacher-os-classroom-assessment.product.spec.ts` | ClassroomAssessment CASE A journey + I03R1 stale VOID concurrency |
+
+Assessment journey (CASE A):
+
+Published worksheet → TeachingExecution COMPLETED → **zero auto-Assessment** →
+Assess this class → RECORD → reload → CORRECT → reload → stale VOID abort
+(zero `/actions/void` POST) → deliberate VOID → VOIDED history persists.
 
 ## CI
 
-The `product-e2e` workflow job checks out Backend `551e46e0…`, provisions PostgreSQL 18,
-migrates to `tosd070002`, starts the development app, and runs `pnpm test:e2e:product`
-(both Assignment and TeachingExecution product specs).
+The `product-e2e` workflow job checks out Backend `1fe28f4f…`, verifies the pin
+SHA, provisions PostgreSQL 18, migrates to `tosd080002`, starts the development
+app, and runs `pnpm test:e2e:product` (Assignment + TeachingExecution +
+ClassroomAssessment product specs).

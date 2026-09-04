@@ -3,7 +3,8 @@
 Uses build_development_teacher_os_app HTTP contracts only:
   create work → generate (fake model) → approve (NOT publish)
 
-Writes fixture JSON for Playwright Assignment + TeachingExecution journeys.
+Writes fixture JSON for Playwright Assignment + TeachingExecution +
+ClassroomAssessment journeys.
 NON_PRODUCTION only. Governed Backend pin / migration head: see fixture fields.
 """
 
@@ -17,11 +18,11 @@ from pathlib import Path
 
 
 SCENARIO_MARKER = (
-    "[TOS-DEV07-I04:product-e2e] TeachingExecution real-stack product journey"
+    "[TOS-DEV08-I04:product-e2e] ClassroomAssessment real-stack product journey"
 )
-SCENARIO_ID = "tos-dev07-i04-teaching-execution-product-e2e"
-BACKEND_PIN_SHA = "551e46e004233421746e4df2789c07367702528b"
-EXPECTED_MIGRATION_HEAD = "tosd070002"
+SCENARIO_ID = "tos-dev08-i04-classroom-assessment-product-e2e"
+BACKEND_PIN_SHA = "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d"
+EXPECTED_MIGRATION_HEAD = "tosd080002"
 
 
 def _backend_root() -> Path:

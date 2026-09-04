@@ -1,15 +1,15 @@
-/** TOS-DEV07-I04 governed pins and development session defaults. */
+/** TOS-DEV08-I04 governed pins and development session defaults. */
 
 export const FRONTEND_BASE_SHA =
-  "7902e59d32af0a8b4670acce831cdf622c520bbc";
+  "398710f168c81cf6fb1f6aebe2b667a1a0bfc575";
 
 export const BACKEND_PIN_SHA =
-  "551e46e004233421746e4df2789c07367702528b";
+  "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
 
 export const OPENAPI_AUTHORITY_SHA =
-  "7D7D0E7C7115667757A31CFEB5474F7498ECC7198FB812DE5EF14A0E9F2D289A";
+  "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D";
 
-export const EXPECTED_MIGRATION_HEAD = "tosd070002";
+export const EXPECTED_MIGRATION_HEAD = "tosd080002";
 
 /** Synthetic development tenant/principal from backend teacher_os_review_scenario. */
 export const DEV_TENANT_ID = "71b5fb49-2bdb-56c3-ab7c-3b33e92a89f0";
