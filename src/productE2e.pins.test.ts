@@ -14,7 +14,7 @@ const EXPECTED_MIGRATION = "tosd090002";
 const EXPECTED_OPENAPI =
   "B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9";
 const EXPECTED_FRONTEND_BASE =
-  "30c94f3e0403b9a5a2e955c706766035490598f9";
+  "05400f007c345283af9880b38e16abdbd55677e4";
 const OBSOLETE_BACKEND = "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
 const OBSOLETE_MIGRATION = "tosd080002";
 
@@ -22,7 +22,7 @@ function read(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-describe("TOS-DEV09-I03 product-E2E pin consistency", () => {
+describe("TOS-DEV09 product-E2E pin consistency", () => {
   it("keeps constants.mjs, harness, seed, bootstrap, and CI on the same pins", () => {
     const constants = read("scripts/product-e2e/constants.mjs");
     expect(constants).toContain(EXPECTED_BACKEND);
@@ -64,5 +64,7 @@ describe("TOS-DEV09-I03 product-E2E pin consistency", () => {
     expect(readme).toContain(EXPECTED_MIGRATION);
     expect(readme).toContain(EXPECTED_OPENAPI);
     expect(readme).toContain(EXPECTED_FRONTEND_BASE);
+    expect(readme).toContain("teacher-os-improve.product.spec.ts");
+    expect(readme).not.toContain("Improve product E2E remains TOS-DEV09-I04");
   });
 });

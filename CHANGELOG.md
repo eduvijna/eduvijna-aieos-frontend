@@ -9,6 +9,13 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV09-I04: Improve real-stack Product E2E on the existing product harness
+  (`e2e-product/teacher-os-improve.product.spec.ts`); Backend pin
+  `62733e3ad0d48887f3cd1e1a4486839170a5d651`, OpenAPI
+  `B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9`, migration
+  head `tosd090002`; Assess → Improve → remediation TeachingWork → Work page
+  with zero `/api` Playwright mocks; preserves Assignment, TeachingExecution,
+  and ClassroomAssessment product regressions.
 - TOS-DEV09-I03: Teacher OS Improve UX replacing `/teacher-os/improve`
   PlaceholderPage; RECORDED ClassroomAssessment hub → teacher-confirmed
   remediation goal → `POST /api/v1/teaching/works/from-classroom-assessment` →
