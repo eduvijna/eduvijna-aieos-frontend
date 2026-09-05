@@ -466,12 +466,16 @@ test.describe("TOS-DEV09-I04 Improve Product E2E", () => {
     expect(state.remediationWorkId).toBeTruthy();
     assertNoApiMocksInstalled(page);
 
-    const today = calendarDateOnlyLocal(new Date());
+    const today = calendarDateOnlyLocal(0);
     const missionResponse = await page.request.get(
       `/api/v1/teacher-os/today/mission?mission_date=${today}`,
       { headers: apiHeaders() },
     );
-    expect(missionResponse.ok()).toBeTruthy();
+    if (!missionResponse.ok()) {
+      throw new Error(
+        `mission read failed: ${missionResponse.status()} ${await missionResponse.text()}`,
+      );
+    }
     const mission = (await missionResponse.json()) as {
       hero_action: { kind: string; work_id: string | null };
       preparation: {
