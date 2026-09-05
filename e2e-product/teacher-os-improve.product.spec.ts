@@ -21,7 +21,8 @@ import {
  * Self-contained prerequisites (does not rely on other product-spec order).
  *
  * Continuity: COMPLETED TeachingExecution → RECORD assessment → Assess
- * “Improve this class” → Improve goal confirm → remediation TeachingWork → Work.
+ * “Improve this class” → Improve goal confirm → remediation TeachingWork → Work
+ * → Today's Mission identifies remediation → resume exact Work.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -457,5 +458,95 @@ test.describe("TOS-DEV09-I04 Improve Product E2E", () => {
     await expect(
       page.getByRole("button", { name: /Publish/i }),
     ).toHaveCount(0);
+  });
+
+  test("Phase G — Today's Mission identifies remediation and resumes the Work", async ({
+    page,
+  }) => {
+    expect(state.remediationWorkId).toBeTruthy();
+    assertNoApiMocksInstalled(page);
+
+    const today = calendarDateOnlyLocal(new Date());
+    const missionResponse = await page.request.get(
+      `/api/v1/teacher-os/today/mission?mission_date=${today}`,
+      { headers: apiHeaders() },
+    );
+    expect(missionResponse.ok()).toBeTruthy();
+    const mission = (await missionResponse.json()) as {
+      hero_action: { kind: string; work_id: string | null };
+      preparation: {
+        continue_work: {
+          work_id: string;
+          intent_type: string;
+          goal_text: string;
+          topic: string | null;
+        } | null;
+      };
+      review: { pending_count: number };
+    };
+
+    expect(mission.preparation.continue_work).not.toBeNull();
+    expect(mission.preparation.continue_work?.work_id).toBe(
+      state.remediationWorkId,
+    );
+    expect(mission.preparation.continue_work?.intent_type).toBe(
+      "remediate_class",
+    );
+    expect(mission.preparation.continue_work?.goal_text).toBe(REMEDIATION_GOAL);
+
+    await page.goto("/teacher-os/today");
+    await connectDevSession(page);
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Today's Mission/i }),
+    ).toBeVisible();
+
+    if (mission.review.pending_count > 0) {
+      await expect(
+        page.getByRole("link", { name: /Open review queue/i }),
+      ).toBeVisible();
+      const alsoOpen = page.getByRole("link", {
+        name: /Continue remediation preparation/i,
+      });
+      await expect(alsoOpen).toHaveAttribute(
+        "href",
+        `/teacher-os/work/${state.remediationWorkId}`,
+      );
+      await alsoOpen.click();
+    } else {
+      expect(mission.hero_action.kind).toBe("continue_work");
+      expect(mission.hero_action.work_id).toBe(state.remediationWorkId);
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: /Continue the follow-up for Fraction comparison/i,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(new RegExp(`Goal: ${REMEDIATION_GOAL}`)),
+      ).toBeVisible();
+      const resume = page.getByRole("link", {
+        name: /Continue remediation preparation/i,
+      });
+      await expect(resume).toHaveAttribute(
+        "href",
+        `/teacher-os/work/${state.remediationWorkId}`,
+      );
+      await resume.click();
+    }
+
+    await expect(page).toHaveURL(
+      new RegExp(`/teacher-os/work/${state.remediationWorkId}`),
+    );
+    await expect(
+      page.getByRole("heading", { name: REMEDIATION_GOAL }),
+    ).toBeVisible();
+    await expect(page.getByText("Remediate class")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Create preparation kit/i }),
+    ).toBeVisible();
+    expect(await page.locator("body").innerText()).not.toMatch(
+      /remediate_class/,
+    );
   });
 });

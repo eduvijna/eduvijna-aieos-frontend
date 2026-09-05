@@ -9,6 +9,8 @@ import { ErrorState } from "@/shared/components/ErrorState";
 import { LoadingState } from "@/shared/components/LoadingState";
 import { localToday, localTomorrow } from "@/shared/time/calendarDate";
 import {
+  continueWorkActionLabel,
+  continueWorkSecondaryHeading,
   missionHero,
   preparationSentence,
   reviewPendingSentence,
@@ -98,7 +100,13 @@ export function TodayPage() {
             )}
             {heroKind === "continue_work" ? null : (
               <div>
-                <dt>Preparation</dt>
+                <dt>
+                  {mission.preparation.continue_work
+                    ? continueWorkSecondaryHeading(
+                        mission.preparation.continue_work,
+                      )
+                    : "Preparation"}
+                </dt>
                 <dd>{preparationSentence(mission, tomorrow)}</dd>
               </div>
             )}
@@ -110,7 +118,9 @@ export function TodayPage() {
                   <Link
                     to={`/teacher-os/work/${mission.preparation.continue_work.work_id}`}
                   >
-                    Continue preparation
+                    {continueWorkActionLabel(
+                      mission.preparation.continue_work,
+                    )}
                   </Link>
                 </dd>
               </div>
