@@ -8,7 +8,7 @@ journeys against live HTTP — **no `/api` Playwright mocks**.
 
 | Artifact | SHA |
 |----------|-----|
-| Frontend base | `30c94f3e0403b9a5a2e955c706766035490598f9` |
+| Frontend base | `05400f007c345283af9880b38e16abdbd55677e4` |
 | Backend read-only pin | `62733e3ad0d48887f3cd1e1a4486839170a5d651` |
 | OpenAPI authority | `B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9` |
 | Migration head | `tosd090002` |

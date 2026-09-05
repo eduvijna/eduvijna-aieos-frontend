@@ -1,7 +1,7 @@
 /** TOS-DEV09 governed pins (Assignment / Execution / Assessment / Improve product E2E). */
 
 export const FRONTEND_BASE_SHA =
-  "30c94f3e0403b9a5a2e955c706766035490598f9";
+  "05400f007c345283af9880b38e16abdbd55677e4";
 
 export const BACKEND_PIN_SHA =
   "62733e3ad0d48887f3cd1e1a4486839170a5d651";
