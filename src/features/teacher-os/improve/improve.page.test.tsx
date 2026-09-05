@@ -373,6 +373,205 @@ describe("TOS-DEV09-I03 Improve page", () => {
     });
   });
 
+  it(
+    "R1: 409 idempotency_key_reused uses dedicated handling and mints a new key on next retry",
+    async () => {
+    const user = userEvent.setup();
+    let phase: "conflict" | "succeed" = "conflict";
+    const calls = stubFetch((call) => {
+      if (call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)) {
+        return mockJsonResponse(sampleAssessment(), { etag: '"r2"' });
+      }
+      if (
+        call.method === "POST" &&
+        call.url.endsWith("/api/v1/teaching/works/from-classroom-assessment")
+      ) {
+        if (phase === "conflict") {
+          return mockProblemResponse(409, "idempotency_key_reused");
+        }
+        return mockJsonResponse(remediationWork(), { status: 201 });
+      }
+      if (call.url.endsWith(`/api/v1/teaching/works/${REMEDIATION_WORK_ID}`)) {
+        return mockJsonResponse(remediationWork(), { etag: '"r0"' });
+      }
+      if (
+        call.url.endsWith(
+          `/api/v1/teaching/works/${REMEDIATION_WORK_ID}/artifacts`,
+        )
+      ) {
+        return mockJsonResponse({
+          work_id: REMEDIATION_WORK_ID,
+          items: [],
+        });
+      }
+      return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+    });
+
+    renderApp(`/teacher-os/improve?assessment_id=${ASSESSMENT_ID}`);
+    await completeImproveFlow(user);
+
+    expect(
+      await screen.findByText(/Idempotency-Key conflicts with different material/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/no longer RECORDED/i),
+    ).not.toBeInTheDocument();
+
+    const postsAfterConflict = calls.filter(
+      (call) =>
+        call.method === "POST" &&
+        call.url.endsWith("/api/v1/teaching/works/from-classroom-assessment"),
+    );
+    expect(postsAfterConflict).toHaveLength(1);
+    expect(
+      screen.queryByRole("heading", {
+        name: /Re-teach plant parts with guided practice/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    phase = "succeed";
+    await user.click(
+      screen.getByRole("button", { name: /Create remediation preparation/i }),
+    );
+
+    await waitFor(() => {
+      const posts = calls.filter(
+        (call) =>
+          call.method === "POST" &&
+          call.url.endsWith(
+            "/api/v1/teaching/works/from-classroom-assessment",
+          ),
+      );
+      expect(posts.length).toBe(2);
+      expect(posts[0]?.headers.get("Idempotency-Key")).toBeTruthy();
+      expect(posts[1]?.headers.get("Idempotency-Key")).toBeTruthy();
+      expect(posts[0]?.headers.get("Idempotency-Key")).not.toBe(
+        posts[1]?.headers.get("Idempotency-Key"),
+      );
+    });
+    expect(
+      await screen.findByRole("heading", {
+        name: /Re-teach plant parts with guided practice/i,
+      }),
+    ).toBeInTheDocument();
+    },
+    15000,
+  );
+
+  it(
+    "R1: classroom_assessment_not_recorded reloads state and does not auto-resubmit",
+    async () => {
+      const user = userEvent.setup();
+      let detailMode: "recorded" | "voided" = "recorded";
+      const calls = stubFetch((call) => {
+        if (call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)) {
+          if (detailMode === "recorded") {
+            return mockJsonResponse(sampleAssessment(), { etag: '"r2"' });
+          }
+          return mockJsonResponse(
+            sampleAssessment({
+              lifecycle_state: "VOIDED",
+              voided_at: "2026-09-04T12:00:00Z",
+              aggregate_revision: 3,
+            }),
+            { etag: '"r3"' },
+          );
+        }
+        if (
+          call.method === "POST" &&
+          call.url.endsWith("/api/v1/teaching/works/from-classroom-assessment")
+        ) {
+          detailMode = "voided";
+          return mockProblemResponse(409, "classroom_assessment_not_recorded");
+        }
+        return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+      });
+
+      renderApp(`/teacher-os/improve?assessment_id=${ASSESSMENT_ID}`);
+      await completeImproveFlow(user);
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("heading", { name: /Assessment not eligible/i }),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getAllByText(
+          /This ClassroomAssessment is VOIDED\. It is not eligible for a new remediation preparation/i,
+        ).length,
+      ).toBeGreaterThanOrEqual(1);
+      const posts = calls.filter(
+        (call) =>
+          call.method === "POST" &&
+          call.url.endsWith(
+            "/api/v1/teaching/works/from-classroom-assessment",
+          ),
+      );
+      expect(posts).toHaveLength(1);
+      expect(
+        screen.queryByRole("heading", {
+          name: /Re-teach plant parts with guided practice/i,
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: /Create remediation preparation/i,
+        }),
+      ).not.toBeInTheDocument();
+    },
+    15000,
+  );
+
+  it(
+    "R1: unrelated 409 is not classified as Assessment lifecycle failure",
+    async () => {
+      const user = userEvent.setup();
+      const calls = stubFetch((call) => {
+        if (call.url.endsWith(`/classroom-assessments/${ASSESSMENT_ID}`)) {
+          return mockJsonResponse(sampleAssessment(), { etag: '"r2"' });
+        }
+        if (
+          call.method === "POST" &&
+          call.url.endsWith("/api/v1/teaching/works/from-classroom-assessment")
+        ) {
+          return mockProblemResponse(
+            409,
+            "some_other_conflict",
+            "Unrelated conflict title",
+          );
+        }
+        return mockJsonResponse({ title: "x", status: 404 }, { status: 404 });
+      });
+
+      renderApp(`/teacher-os/improve?assessment_id=${ASSESSMENT_ID}`);
+      await completeImproveFlow(user);
+
+      expect(
+        await screen.findByText("Unrelated conflict title"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/no longer RECORDED/i),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Idempotency-Key conflicts/i),
+      ).not.toBeInTheDocument();
+      const posts = calls.filter(
+        (call) =>
+          call.method === "POST" &&
+          call.url.endsWith(
+            "/api/v1/teaching/works/from-classroom-assessment",
+          ),
+      );
+      expect(posts).toHaveLength(1);
+      expect(
+        screen.getByRole("button", {
+          name: /Create remediation preparation/i,
+        }),
+      ).toBeInTheDocument();
+    },
+    15000,
+  );
+
   it("stale Assessment revision requires re-review with no auto-resubmit", async () => {
     const user = userEvent.setup();
     let revision = 2;

@@ -250,6 +250,7 @@ export function ImprovePage() {
 
   async function handleCreateError(error: unknown) {
     const code = problemCodeFromApiError(error);
+    // 1. Stale / revision conflict
     if (
       error instanceof ApiError &&
       (error.status === 412 ||
@@ -285,11 +286,22 @@ export function ImprovePage() {
       }
       return;
     }
+    // 2. Exact idempotency-key reuse conflict (must not be swallowed by 409 lifecycle)
     if (
       error instanceof ApiError &&
-      (error.status === 409 ||
-        code === "classroom_assessment_not_recorded" ||
-        code === "assessment_not_recorded")
+      error.status === 409 &&
+      code === "idempotency_key_reused"
+    ) {
+      resetCreateAssociation();
+      setActionMessage(
+        "This Idempotency-Key conflicts with different material. Start a new deliberate confirmation (a new key will be minted).",
+      );
+      return;
+    }
+    // 3. Exact Assessment-not-RECORDED remediation conflict codes only
+    if (
+      error instanceof ApiError &&
+      code === "classroom_assessment_not_recorded"
     ) {
       resetCreateAssociation();
       if (selected) {
@@ -310,23 +322,14 @@ export function ImprovePage() {
       }
       return;
     }
-    if (
-      error instanceof ApiError &&
-      error.status === 409 &&
-      code === "idempotency_key_reused"
-    ) {
-      resetCreateAssociation();
-      setActionMessage(
-        "This Idempotency-Key conflicts with different material. Start a new deliberate confirmation (a new key will be minted).",
-      );
-      return;
-    }
+    // 4. Authorization
     if (error instanceof ApiError && (error.status === 403 || error.status === 401)) {
       setErrorMessage(
         "You are not authorized for this Improve action right now. Server authority denied the request.",
       );
       return;
     }
+    // 5. Unavailable
     if (
       error instanceof ApiError &&
       (error.status === 503 ||
@@ -338,12 +341,15 @@ export function ImprovePage() {
       );
       return;
     }
+    // 6. Not found
     if (error instanceof ApiError && error.status === 404) {
       setErrorMessage(
         "That ClassroomAssessment was not found. It was not substituted with another assessment.",
       );
       return;
     }
+    // 7. Normal Problem Details / user-message fallback (incl. unrelated 409)
+    setActionMessage(null);
     setErrorMessage(userMessageForApiError(error));
   }
 
