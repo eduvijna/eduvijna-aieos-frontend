@@ -9,20 +9,20 @@ const repoRoot = path.resolve(
 );
 
 const EXPECTED_BACKEND =
-  "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
-const EXPECTED_MIGRATION = "tosd080002";
+  "62733e3ad0d48887f3cd1e1a4486839170a5d651";
+const EXPECTED_MIGRATION = "tosd090002";
 const EXPECTED_OPENAPI =
-  "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D";
+  "B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9";
 const EXPECTED_FRONTEND_BASE =
-  "398710f168c81cf6fb1f6aebe2b667a1a0bfc575";
-const OBSOLETE_BACKEND = "551e46e004233421746e4df2789c07367702528b";
-const OBSOLETE_MIGRATION = "tosd070002";
+  "30c94f3e0403b9a5a2e955c706766035490598f9";
+const OBSOLETE_BACKEND = "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
+const OBSOLETE_MIGRATION = "tosd080002";
 
 function read(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-describe("TOS-DEV08-I04 product-E2E pin consistency", () => {
+describe("TOS-DEV09-I03 product-E2E pin consistency", () => {
   it("keeps constants.mjs, harness, seed, bootstrap, and CI on the same pins", () => {
     const constants = read("scripts/product-e2e/constants.mjs");
     expect(constants).toContain(EXPECTED_BACKEND);
@@ -30,7 +30,7 @@ describe("TOS-DEV08-I04 product-E2E pin consistency", () => {
     expect(constants).toContain(EXPECTED_OPENAPI);
     expect(constants).toContain(EXPECTED_FRONTEND_BASE);
     expect(constants).toMatch(/BACKEND_PIN_SHA\s*=/);
-    expect(constants).toMatch(/EXPECTED_MIGRATION_HEAD\s*=\s*"tosd080002"/);
+    expect(constants).toMatch(/EXPECTED_MIGRATION_HEAD\s*=\s*"tosd090002"/);
     expect(constants).toMatch(/OPENAPI_AUTHORITY_SHA\s*=/);
     expect(constants).toMatch(/FRONTEND_BASE_SHA\s*=/);
     expect(constants).not.toContain(OBSOLETE_BACKEND);
@@ -64,6 +64,5 @@ describe("TOS-DEV08-I04 product-E2E pin consistency", () => {
     expect(readme).toContain(EXPECTED_MIGRATION);
     expect(readme).toContain(EXPECTED_OPENAPI);
     expect(readme).toContain(EXPECTED_FRONTEND_BASE);
-    expect(readme).toContain("TOS-DEV08-I04");
   });
 });

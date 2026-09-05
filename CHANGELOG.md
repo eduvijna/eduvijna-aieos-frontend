@@ -9,6 +9,13 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV09-I03: Teacher OS Improve UX replacing `/teacher-os/improve`
+  PlaceholderPage; RECORDED ClassroomAssessment hub → teacher-confirmed
+  remediation goal → `POST /api/v1/teaching/works/from-classroom-assessment` →
+  existing Work page; Assess “Improve this class” handoff; Backend OpenAPI
+  consumer pin `62733e3ad0d48887f3cd1e1a4486839170a5d651`, OpenAPI
+  `B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9`, product
+  E2E Backend pin/migration `tosd090002` (Improve product E2E remains I04).
 - TOS-DEV08-I04: ClassroomAssessment real-stack Product E2E on the existing
   product harness; Backend pin `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d`,
   OpenAPI `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D`,
@@ -36,6 +43,11 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Non-authoritative OpenAPI consumer snapshot repinned to backend SHA
+  `62733e3ad0d48887f3cd1e1a4486839170a5d651` (TOS-DEV09-I02 remediation create),
+  adding `teaching_work_from_classroom_assessment_create`, and regenerated API
+  types. Product-E2E Backend pin and CI checkout updated to the same authority
+  / migration head `tosd090002`.
 - Non-authoritative OpenAPI consumer snapshot repinned to backend SHA
   `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` (TOS-DEV08-I02 merge), adding
   ClassroomAssessment operations, and regenerated API types.

@@ -1,15 +1,15 @@
-/** TOS-DEV08-I04 governed pins and development session defaults. */
+/** TOS-DEV09-I03 governed pins (existing product journeys; Improve product E2E is I04). */
 
 export const FRONTEND_BASE_SHA =
-  "398710f168c81cf6fb1f6aebe2b667a1a0bfc575";
+  "30c94f3e0403b9a5a2e955c706766035490598f9";
 
 export const BACKEND_PIN_SHA =
-  "1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d";
+  "62733e3ad0d48887f3cd1e1a4486839170a5d651";
 
 export const OPENAPI_AUTHORITY_SHA =
-  "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D";
+  "B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9";
 
-export const EXPECTED_MIGRATION_HEAD = "tosd080002";
+export const EXPECTED_MIGRATION_HEAD = "tosd090002";
 
 /** Synthetic development tenant/principal from backend teacher_os_review_scenario. */
 export const DEV_TENANT_ID = "71b5fb49-2bdb-56c3-ab7c-3b33e92a89f0";

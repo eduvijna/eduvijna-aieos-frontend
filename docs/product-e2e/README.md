@@ -1,17 +1,19 @@
-# TOS-DEV08-I04 Product E2E
+# Product E2E
 
 Real-stack Playwright lane proving Assignment regression, TeachingExecution
 regression, and ClassroomAssessment product journeys against live HTTP —
 **no `/api` Playwright mocks**.
 
-## Governed pins
+DEV09 Improve full product journey is **not** included here (TOS-DEV09-I04).
+
+## Governed pins (TOS-DEV09-I03 Backend authority)
 
 | Artifact | SHA |
 |----------|-----|
-| Frontend base | `398710f168c81cf6fb1f6aebe2b667a1a0bfc575` |
-| Backend read-only pin | `1fe28f4fd1a2a2070aa69d67daa49cd53ba5820d` |
-| OpenAPI authority | `824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D` |
-| Migration head | `tosd080002` |
+| Frontend base | `30c94f3e0403b9a5a2e955c706766035490598f9` |
+| Backend read-only pin | `62733e3ad0d48887f3cd1e1a4486839170a5d651` |
+| OpenAPI authority | `B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9` |
+| Migration head | `tosd090002` |
 
 ## Non-production boundary
 
@@ -88,7 +90,7 @@ Assess this class → RECORD → reload → CORRECT → reload → stale VOID ab
 
 ## CI
 
-The `product-e2e` workflow job checks out Backend `1fe28f4f…`, verifies the pin
-SHA, provisions PostgreSQL 18, migrates to `tosd080002`, starts the development
+The `product-e2e` workflow job checks out Backend `62733e3a…`, verifies the pin
+SHA, provisions PostgreSQL 18, migrates to `tosd090002`, starts the development
 app, and runs `pnpm test:e2e:product` (Assignment + TeachingExecution +
-ClassroomAssessment product specs).
+ClassroomAssessment product specs). Improve product E2E remains TOS-DEV09-I04.

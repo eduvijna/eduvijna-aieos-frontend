@@ -1,10 +1,8 @@
-import type { TeachingIntentType } from "@/services/api/generated/teachingTypes";
-
 /**
  * A Teaching Intent is the request that enters Work creation. It is never
  * persisted on its own, so nothing here is cached or stored in the browser.
  */
-export const INTENT_TYPE: TeachingIntentType = "prepare_tomorrow";
+export const INTENT_TYPE = "prepare_tomorrow" as const;
 
 export const DEFAULT_LOCALE = "en-IN";
 

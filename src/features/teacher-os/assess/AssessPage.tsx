@@ -45,6 +45,7 @@ import {
   isClassResultLevel,
   type ClassResultLevel,
 } from "./assessmentPresentation";
+import { improveHrefForAssessment } from "../improve/improvePresentation";
 import "../teach/teach.css";
 import "./assess.css";
 
@@ -908,12 +909,21 @@ export function AssessPage() {
                 <p className="muted">
                   VOIDED is terminal. Correct and void are not available. The
                   record remains visible history — it is not deleted and is not
-                  mastery.
+                  mastery. Improve create is not available for VOIDED
+                  assessments.
                 </p>
               ) : null}
 
               {isAssessmentRecorded(selected) ? (
                 <>
+                  <div className="detail-actions">
+                    <Link
+                      className="btn btn-secondary"
+                      to={improveHrefForAssessment(selected.assessment_id)}
+                    >
+                      Improve this class
+                    </Link>
+                  </div>
                   <fieldset className="assess-result-fieldset" disabled={busy}>
                     <legend>Correct class result</legend>
                     {CLASS_RESULT_LEVELS.map((option) => (

@@ -28,6 +28,7 @@
   "include": ["src"],
   "exclude": [
     "src/features/teacher-os/teach/assignment.contract.test.ts",
+    "src/features/teacher-os/improve/improve.architecture.test.ts",
     "src/localDev.portAlignment.test.ts",
     "src/productE2e.pins.test.ts"
   ]

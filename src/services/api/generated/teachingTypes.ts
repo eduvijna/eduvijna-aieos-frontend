@@ -5,7 +5,7 @@
  */
 
 /** Teaching Intent is a request that enters Work creation. It is never a durable aggregate. */
-export type TeachingIntentType = "prepare_tomorrow";
+export type TeachingIntentType = "prepare_tomorrow" | "remediate_class";
 
 export type TeachingWork = {
   work_id: string;
@@ -29,7 +29,8 @@ export type TeachingWorkList = {
 };
 
 export type TeachingWorkCreateRequest = {
-  intent_type: TeachingIntentType;
+  /** Prepare-tomorrow create only; remediation uses the dedicated Assessment-origin endpoint. */
+  intent_type: "prepare_tomorrow";
   goal_text: string;
   target_date: string;
   locale: string;

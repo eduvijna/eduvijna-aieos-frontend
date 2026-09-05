@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import type { components } from "./generated/aieos-v1";
 import type {
   TeachingWork,
   TeachingWorkArtifactsResponse,
@@ -8,6 +9,9 @@ import type {
   TeachingWorkPrepareResponse,
   TeachingWorkRefineRequest,
 } from "./generated/teachingTypes";
+
+export type RemediationTeachingWorkCreateRequest =
+  components["schemas"]["RemediationTeachingWorkCreateRequest"];
 
 /**
  * Create a Work from a Teaching Intent request.
@@ -26,6 +30,28 @@ export async function createTeachingWork(
       "Idempotency-Key": idempotencyKey ?? crypto.randomUUID(),
     },
   });
+}
+
+/**
+ * Create remediation TeachingWork from a RECORDED ClassroomAssessment
+ * (ADR-AIEOS-056). Server derives intent_type=remediate_class and ClassRef.
+ *
+ * Pass a stable `idempotencyKey` for one logical teacher submission/retry.
+ */
+export async function createRemediationTeachingWorkFromAssessment(
+  body: RemediationTeachingWorkCreateRequest,
+  idempotencyKey: string,
+) {
+  return apiRequest<TeachingWork>(
+    "/api/v1/teaching/works/from-classroom-assessment",
+    {
+      method: "POST",
+      body,
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
+    },
+  );
 }
 
 export async function listTeachingWorks(options?: {

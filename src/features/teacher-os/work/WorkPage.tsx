@@ -50,6 +50,7 @@ import {
   summarizeResolvedLifecycle,
   type ArtifactLifecycleActions,
 } from "./lifecycle";
+import { formatImproveIntentLabel } from "../improve/improvePresentation";
 import "./work.css";
 
 function ArtifactActions(props: {
@@ -419,24 +420,29 @@ export function WorkPage() {
         )
       : null;
   const anyBusy = busy || preparing || publishingContentId !== null;
+  const isRemediation = work?.intent_type === "remediate_class";
+  const workKindLabel = isRemediation
+    ? "Remediation preparation"
+    : "Preparation";
 
   return (
     <article className="stack work-page">
       <header>
         <p className="muted">
-          <Link to="/teacher-os/today">Today&apos;s Mission</Link> · Preparation
+          <Link to="/teacher-os/today">Today&apos;s Mission</Link> ·{" "}
+          {workKindLabel}
         </p>
-        <h1>{work ? work.goal_text : "Preparation"}</h1>
+        <h1>{work ? work.goal_text : workKindLabel}</h1>
       </header>
 
       <div className="status-region" aria-live="polite">
         {status === "loading" ? (
-          <LoadingState label="Loading preparation…" />
+          <LoadingState label={`Loading ${workKindLabel.toLowerCase()}…`} />
         ) : null}
         {status === "unavailable" ? (
           <EmptyState
             title="Session required"
-            description="Connect a DEV session to load this preparation from the API."
+            description={`Connect a DEV session to load this ${workKindLabel.toLowerCase()} from the API.`}
           />
         ) : null}
         {status === "error" ? (
@@ -451,7 +457,9 @@ export function WorkPage() {
       {status === "ready" && work ? (
         <>
           <section className="panel" aria-labelledby="work-meta-heading">
-            <h2 id="work-meta-heading">Saved preparation</h2>
+            <h2 id="work-meta-heading">
+              {isRemediation ? "Saved remediation preparation" : "Saved preparation"}
+            </h2>
             <dl className="work-meta">
               <div>
                 <dt>Outcome</dt>
@@ -479,7 +487,7 @@ export function WorkPage() {
               </div>
               <div>
                 <dt>Intent</dt>
-                <dd>{work.intent_type}</dd>
+                <dd>{formatImproveIntentLabel(work.intent_type)}</dd>
               </div>
               <div>
                 <dt>Revision</dt>
