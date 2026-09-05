@@ -36,9 +36,23 @@ const REQUIRED_OPERATION_IDS = [
   "assessment_classroom_get",
   "assessment_classroom_correct",
   "assessment_classroom_void",
+  "teaching_work_from_classroom_assessment_create",
 ] as const;
 
-describe("TOS-DEV08-I03 OpenAPI consumer contract", () => {
+describe("TOS-DEV09-I03 OpenAPI consumer contract", () => {
+  it("pins Backend OpenAPI source SHA in sync script", () => {
+    const syncScript = readFileSync(
+      path.join(repoRoot, "scripts/sync-openapi-snapshot.mjs"),
+      "utf8",
+    );
+    expect(syncScript).toContain(
+      '62733e3ad0d48887f3cd1e1a4486839170a5d651',
+    );
+    expect(syncScript).toContain(
+      "B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9",
+    );
+  });
+
   it("consumer snapshot SHA-256 matches Backend OpenAPI authority", () => {
     const bytes = readFileSync(snapshotPath);
     const digest = createHash("sha256")
@@ -46,16 +60,24 @@ describe("TOS-DEV08-I03 OpenAPI consumer contract", () => {
       .digest("hex")
       .toUpperCase();
     expect(digest).toBe(
-      "824B389D6D4EDB2EA5D8ED3A9E5411087B566DFDCA09C2AB0CD4FDED51C4D89D",
+      "B4326D43A213D7831F2AAD8E77A2CEC6BA70B800B4C62EFC52D5B8DFC07CB4D9",
     );
   });
 
-  it("snapshot and generated types include Assignment + Execution + Assessment operationIds", () => {
+  it("snapshot and generated types include Assessment + remediation create operationIds", () => {
     const snapshot = readFileSync(snapshotPath, "utf8");
     const generated = readFileSync(generatedPath, "utf8");
     for (const operationId of REQUIRED_OPERATION_IDS) {
       expect(snapshot).toContain(`"operationId": "${operationId}"`);
       expect(generated).toContain(operationId);
     }
+  });
+
+  it("does not invent an /improvements API or learner/mastery/memory surface", () => {
+    const snapshot = readFileSync(snapshotPath, "utf8");
+    expect(snapshot).not.toMatch(/\/api\/v1\/improvements/);
+    expect(snapshot).not.toMatch(/operationId": ".*mastery/);
+    expect(snapshot).not.toMatch(/operationId": ".*teacher_memory/);
+    expect(snapshot).not.toMatch(/\/api\/v1\/learners/);
   });
 });

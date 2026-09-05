@@ -1,0 +1,134 @@
+.improve-page {
+  max-width: var(--content-max);
+}
+
+.improve-lede {
+  max-width: 42rem;
+  color: var(--color-ink-muted);
+}
+
+.improve-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--color-ink-muted);
+}
+
+.improve-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.improve-steps li.is-current {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.improve-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  font-size: 0.8rem;
+}
+
+.improve-steps li.is-current .improve-step-index {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.improve-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.improve-form h2 {
+  font-size: 1.35rem;
+  max-width: 36rem;
+  margin-bottom: var(--space-2);
+}
+
+.improve-form label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.improve-form input,
+.improve-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.improve-form textarea {
+  resize: vertical;
+}
+
+.improve-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 40rem) {
+  .improve-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.improve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.improve-error {
+  color: var(--color-danger, #a11);
+  margin: 0;
+}
+
+.improve-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.improve-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-3);
+}
+
+.improve-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.improve-confirm-box {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.improve-readonly-note {
+  white-space: pre-wrap;
+}
