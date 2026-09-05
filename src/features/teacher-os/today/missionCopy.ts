@@ -16,6 +16,13 @@ export type MissionHero = {
   actionTo: string;
 };
 
+/** Teaching Intent discriminator already present on continue_work. */
+export function isRemediationContinueWork(
+  work: MissionContinueWork,
+): boolean {
+  return work.intent_type === "remediate_class";
+}
+
 export function reviewPendingSentence(pendingCount: number): string {
   if (pendingCount === 0) return "No items are waiting for review.";
   if (pendingCount === 1) return "1 item waiting for review";
@@ -31,11 +38,28 @@ export function workSnippet(work: MissionContinueWork): string | null {
   return null;
 }
 
+export function continueWorkActionLabel(
+  work: MissionContinueWork | null | undefined,
+): string {
+  if (work && isRemediationContinueWork(work)) {
+    return "Continue remediation preparation";
+  }
+  return "Continue preparation";
+}
+
 export function continueWorkHeadline(
   work: MissionContinueWork,
   tomorrow: string = localTomorrow(),
 ): string {
   const snippet = workSnippet(work);
+
+  if (isRemediationContinueWork(work)) {
+    if (snippet) {
+      return `Continue the follow-up for ${snippet}`;
+    }
+    return "Continue class improvement";
+  }
+
   if (work.target_date === tomorrow) {
     return snippet
       ? `Continue tomorrow's ${snippet} preparation`
@@ -56,15 +80,31 @@ export function preparationSentence(
   }
   const snippet = workSnippet(work);
   const focus = snippet ? `${snippet}: ` : "";
-  const scope =
-    work.target_date === tomorrow
-      ? "tomorrow"
-      : `the lesson on ${work.target_date}`;
   const others =
     count > 1
       ? ` Plus ${count - 1} other active preparation${count - 1 === 1 ? "" : "s"}.`
       : "";
+
+  if (isRemediationContinueWork(work)) {
+    const scope =
+      work.target_date === tomorrow
+        ? "tomorrow"
+        : `the lesson on ${work.target_date}`;
+    return `Class improvement for ${scope} is in progress — ${focus}${work.goal_text}${others}`;
+  }
+
+  const scope =
+    work.target_date === tomorrow
+      ? "tomorrow"
+      : `the lesson on ${work.target_date}`;
   return `Preparation for ${scope} is in progress — ${focus}${work.goal_text}${others}`;
+}
+
+/** Secondary-row label when Review is hero and continue_work is also present. */
+export function continueWorkSecondaryHeading(
+  work: MissionContinueWork,
+): string {
+  return isRemediationContinueWork(work) ? "Class improvement" : "Preparation";
 }
 
 export function missionHero(
@@ -89,7 +129,7 @@ export function missionHero(
           ? continueWorkHeadline(work, tomorrow)
           : "Continue your preparation",
         detail: work ? `Goal: ${work.goal_text}` : "",
-        actionLabel: "Continue preparation",
+        actionLabel: continueWorkActionLabel(work),
         actionTo: `/teacher-os/work/${workId}`,
       };
     }

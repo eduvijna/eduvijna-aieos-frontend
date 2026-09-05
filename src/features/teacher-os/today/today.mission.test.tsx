@@ -139,6 +139,74 @@ describe("C. Mission hero actions follow the projection", () => {
     ).toBeInTheDocument();
   });
 
+  it("CONTINUE_WORK: remediation Work uses follow-up language, not generic preparation", async () => {
+    const remediation = {
+      ...sampleContinueWork,
+      intent_type: "remediate_class",
+      goal_text: "Rebuild fraction comparison fluency with guided visual models",
+      subject: "Mathematics",
+      topic: "Fraction comparison",
+    };
+    stubMission({
+      mission_date: calendarDate(0),
+      review: { pending_count: 0 },
+      preparation: { active_work_count: 1, continue_work: remediation },
+      hero_action: {
+        kind: "continue_work",
+        work_id: remediation.work_id,
+      },
+    });
+    renderApp("/teacher-os/today");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: /Continue the follow-up for Fraction comparison/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Goal: Rebuild fraction comparison fluency with guided visual models/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Continue remediation preparation/i }),
+    ).toHaveAttribute("href", `/teacher-os/work/${remediation.work_id}`);
+    expect(document.body.textContent ?? "").not.toMatch(/remediate_class/);
+  });
+
+  it("REVIEW + remediation Also open: keeps Review hero and remediation-aware secondary CTA", async () => {
+    const remediation = {
+      ...sampleContinueWork,
+      intent_type: "remediate_class",
+      goal_text: "Rebuild fraction comparison fluency with guided visual models",
+      subject: "Mathematics",
+      topic: "Fraction comparison",
+    };
+    stubMission({
+      mission_date: calendarDate(0),
+      review: { pending_count: 2 },
+      preparation: { active_work_count: 1, continue_work: remediation },
+      hero_action: { kind: "review", work_id: null },
+    });
+    renderApp("/teacher-os/today");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: /2 items waiting for review/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Open review queue/i }),
+    ).toHaveAttribute("href", "/teacher-os/review");
+    expect(
+      screen.getByRole("link", { name: /Continue remediation preparation/i }),
+    ).toHaveAttribute("href", `/teacher-os/work/${remediation.work_id}`);
+    expect(screen.getByText(/^Class improvement$/i)).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(/remediate_class/);
+  });
+
   it("PREPARE_TOMORROW: says nothing is waiting and links to Prepare", async () => {
     stubMission(missionWithPrepareTomorrow());
     renderApp("/teacher-os/today");

@@ -89,13 +89,14 @@ Published worksheet → TeachingExecution COMPLETED → **zero auto-Assessment**
 Assess this class → RECORD → reload → CORRECT → reload → stale VOID abort
 (zero `/actions/void` POST) → deliberate VOID → VOIDED history persists.
 
-Improve journey (TOS-DEV09-I04):
+Improve journey (TOS-DEV09-I04 / TOS-DEV10-I01):
 
 Published worksheet → TeachingExecution COMPLETED → RECORD ClassroomAssessment →
 Assess “Improve this class” → Improve goal/context/confirm → real
 `POST /api/v1/teaching/works/from-classroom-assessment` → Work page
 (`intent_type=remediate_class`) with **zero** automatic Generate / Publish /
-Assign / Teach.
+Assign / Teach → Today's Mission identifies remediation → CTA opens the exact
+remediation Work.
 
 ## CI
 

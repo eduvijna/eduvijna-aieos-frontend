@@ -9,6 +9,13 @@ and this repository follows [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TOS-DEV10-I01: Today's Mission remediation-aware loop closure — when
+  `continue_work.intent_type` is `remediate_class`, Mission copy/actions use
+  class-improvement / remediation-preparation language (never the internal
+  enum), including Review-hero secondary “Also open”; ordinary
+  `prepare_tomorrow` Mission copy unchanged; Product E2E Improve journey Phase G
+  proves Mission → exact remediation Work on Backend pin
+  `62733e3ad0d48887f3cd1e1a4486839170a5d651` / migration `tosd090002`.
 - TOS-DEV09-I04: Improve real-stack Product E2E on the existing product harness
   (`e2e-product/teacher-os-improve.product.spec.ts`); Backend pin
   `62733e3ad0d48887f3cd1e1a4486839170a5d651`, OpenAPI
