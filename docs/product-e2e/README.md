@@ -1,12 +1,10 @@
 # Product E2E
 
 Real-stack Playwright lane proving Assignment regression, TeachingExecution
-regression, and ClassroomAssessment product journeys against live HTTP —
-**no `/api` Playwright mocks**.
+regression, ClassroomAssessment, and Improve (remediation create) product
+journeys against live HTTP — **no `/api` Playwright mocks**.
 
-DEV09 Improve full product journey is **not** included here (TOS-DEV09-I04).
-
-## Governed pins (TOS-DEV09-I03 Backend authority)
+## Governed pins (TOS-DEV09 Backend authority)
 
 | Artifact | SHA |
 |----------|-----|
@@ -70,9 +68,11 @@ Precondition seed (before browser tests): create TeachingWork → generate works
 TeachingExecution, and ClassroomAssessment prerequisites publish the exact
 fixture version when needed.
 
-Scenario marker:
+Scenario markers:
 
 `[TOS-DEV08-I04:product-e2e] ClassroomAssessment real-stack product journey`
+
+`[TOS-DEV09-I04:product-e2e] Improve real-stack product journey`
 
 ## Specs
 
@@ -81,6 +81,7 @@ Scenario marker:
 | `e2e-product/teacher-os-assignment.product.spec.ts` | DEV06 Assignment regression on current Backend |
 | `e2e-product/teacher-os-execution.product.spec.ts` | TeachingExecution real-stack journey |
 | `e2e-product/teacher-os-classroom-assessment.product.spec.ts` | ClassroomAssessment CASE A journey + I03R1 stale VOID concurrency |
+| `e2e-product/teacher-os-improve.product.spec.ts` | DEV09 Improve Assess→Improve→remediation Work (TOS-DEV09-I04) |
 
 Assessment journey (CASE A):
 
@@ -88,9 +89,17 @@ Published worksheet → TeachingExecution COMPLETED → **zero auto-Assessment**
 Assess this class → RECORD → reload → CORRECT → reload → stale VOID abort
 (zero `/actions/void` POST) → deliberate VOID → VOIDED history persists.
 
+Improve journey (TOS-DEV09-I04):
+
+Published worksheet → TeachingExecution COMPLETED → RECORD ClassroomAssessment →
+Assess “Improve this class” → Improve goal/context/confirm → real
+`POST /api/v1/teaching/works/from-classroom-assessment` → Work page
+(`intent_type=remediate_class`) with **zero** automatic Generate / Publish /
+Assign / Teach.
+
 ## CI
 
 The `product-e2e` workflow job checks out Backend `62733e3a…`, verifies the pin
 SHA, provisions PostgreSQL 18, migrates to `tosd090002`, starts the development
 app, and runs `pnpm test:e2e:product` (Assignment + TeachingExecution +
-ClassroomAssessment product specs). Improve product E2E remains TOS-DEV09-I04.
+ClassroomAssessment + Improve product specs).

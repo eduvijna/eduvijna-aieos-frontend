@@ -22,7 +22,7 @@ function read(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-describe("TOS-DEV09-I03 product-E2E pin consistency", () => {
+describe("TOS-DEV09 product-E2E pin consistency", () => {
   it("keeps constants.mjs, harness, seed, bootstrap, and CI on the same pins", () => {
     const constants = read("scripts/product-e2e/constants.mjs");
     expect(constants).toContain(EXPECTED_BACKEND);
@@ -64,5 +64,7 @@ describe("TOS-DEV09-I03 product-E2E pin consistency", () => {
     expect(readme).toContain(EXPECTED_MIGRATION);
     expect(readme).toContain(EXPECTED_OPENAPI);
     expect(readme).toContain(EXPECTED_FRONTEND_BASE);
+    expect(readme).toContain("teacher-os-improve.product.spec.ts");
+    expect(readme).not.toContain("Improve product E2E remains TOS-DEV09-I04");
   });
 });

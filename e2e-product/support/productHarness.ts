@@ -210,3 +210,59 @@ export function assertNoLearnerAssessmentFields(
     expect(payload).not.toHaveProperty(key);
   }
 }
+
+export type TeachingWorkDto = {
+  work_id: string;
+  intent_type: string;
+  goal_text: string;
+  class_label: string | null;
+  subject: string | null;
+  topic: string | null;
+  target_date: string;
+  locale: string;
+  aggregate_revision: number;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+};
+
+export async function fetchTeachingWork(
+  page: Page,
+  workId: string,
+): Promise<{ data: TeachingWorkDto; etag: string | null }> {
+  const response = await page.request.get(`/api/v1/teaching/works/${workId}`, {
+    headers: apiHeaders(),
+  });
+  expect(response.ok()).toBeTruthy();
+  return {
+    data: (await response.json()) as TeachingWorkDto,
+    etag: response.headers()["etag"] ?? null,
+  };
+}
+
+export async function listTeachingWorkArtifacts(
+  page: Page,
+  workId: string,
+): Promise<{ work_id: string; items: unknown[] }> {
+  const response = await page.request.get(
+    `/api/v1/teaching/works/${workId}/artifacts`,
+    { headers: apiHeaders() },
+  );
+  expect(response.ok()).toBeTruthy();
+  return response.json() as Promise<{ work_id: string; items: unknown[] }>;
+}
+
+/** Local calendar date YYYY-MM-DD for HTML date inputs (Improve Product E2E). */
+export function calendarDateOnlyLocal(offsetDays: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function assertNoApiMocksInstalled(page: Page) {
+  const routes = (page as unknown as { _routes?: unknown[] })._routes;
+  if (routes && routes.length > 0) {
+    throw new Error("Product E2E must not register page.route handlers");
+  }
+}

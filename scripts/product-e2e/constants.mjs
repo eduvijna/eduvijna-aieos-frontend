@@ -1,4 +1,4 @@
-/** TOS-DEV09-I03 governed pins (existing product journeys; Improve product E2E is I04). */
+/** TOS-DEV09 governed pins (Assignment / Execution / Assessment / Improve product E2E). */
 
 export const FRONTEND_BASE_SHA =
   "30c94f3e0403b9a5a2e955c706766035490598f9";
